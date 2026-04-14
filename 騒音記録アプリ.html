@@ -8,709 +8,210 @@
   <meta name="apple-mobile-web-app-title" content="騒音記録">
   <title>騒音記録</title>
   <style>
-    :root {
-      --red: #FF3B30;
-      --red-shadow: rgba(255,59,48,0.35);
-      --blue: #007AFF;
-      --green: #34C759;
-      --orange: #FF9500;
-      --bg: #F2F2F7;
-      --card: #FFFFFF;
-      --text: #1C1C1E;
-      --text2: #8E8E93;
-      --sep: rgba(60,60,67,0.18);
-      --safe-top: env(safe-area-inset-top, 44px);
-      --safe-bot: env(safe-area-inset-bottom, 34px);
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-      background: var(--bg); color: var(--text);
-      min-height: 100vh;
-      padding-bottom: calc(60px + var(--safe-bot));
-      -webkit-font-smoothing: antialiased;
-      /* iOSでボタンが押せない問題対策 */
-      cursor: pointer;
-    }
-
-    /* ── Header ── */
-    .header {
-      background: rgba(242,242,247,0.92);
-      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-      padding: calc(var(--safe-top) + 8px) 16px 12px;
-      border-bottom: 1px solid var(--sep);
-      position: sticky; top: 0; z-index: 20;
-      text-align: center;
-    }
-    .header h1 { font-size: 17px; font-weight: 700; }
-    .header p { font-size: 12px; color: var(--text2); margin-top: 2px; }
-
-    /* ── Pages ── */
-    .page { display: none; padding: 20px 16px; }
-    .page.active { display: block; }
-
-    /* ── Record button ── */
-    .record-center {
-      display: flex; flex-direction: column; align-items: center;
-      padding: 32px 0 20px;
-    }
-    .record-btn {
-      width: 190px; height: 190px; border-radius: 50%;
-      background: var(--red); border: none; color: #fff;
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 6px;
-      box-shadow: 0 6px 32px var(--red-shadow);
-      /* iOS タップ遅延・選択を無効化 */
-      touch-action: manipulation;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none; user-select: none;
-      -webkit-tap-highlight-color: transparent;
-      cursor: pointer;
-      position: relative;
-    }
-    .record-btn.pressing { opacity: 0.78; transform: scale(0.94); }
-    .record-btn .btn-icon { font-size: 50px; pointer-events: none; }
-    .record-btn .btn-label { font-size: 15px; font-weight: 700; pointer-events: none; }
-    .record-hint { font-size: 13px; color: var(--text2); margin-top: 14px; text-align: center; }
-    .manual-add-btn {
-      display: inline-block; margin-top: 10px; border: none; background: none;
-      color: var(--blue); font-size: 14px; cursor: pointer; padding: 8px 16px;
-      font-family: inherit; touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    /* ── Cards / List ── */
-    .section-title {
-      font-size: 13px; font-weight: 600; color: var(--text2);
-      letter-spacing: 0.5px; margin-bottom: 8px; padding: 0 4px;
-    }
-    .card { background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
-    .record-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 13px 16px; border-bottom: 1px solid var(--sep);
-      cursor: pointer; touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .record-item:last-child { border-bottom: none; }
-    .record-item.pressing { background: #ebebf0; }
-    .record-badge {
-      width: 40px; height: 40px; border-radius: 10px;
-      background: linear-gradient(135deg, var(--red), #FF6B6B);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px; flex-shrink: 0; pointer-events: none;
-    }
-    .record-info { flex: 1; min-width: 0; pointer-events: none; }
-    .record-datetime { font-size: 15px; font-weight: 600; }
-    .record-note { font-size: 13px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .record-manual-badge {
-      font-size: 11px; background: #fff3e0; color: var(--orange);
-      padding: 1px 7px; border-radius: 20px; font-weight: 600;
-      margin-left: 6px; vertical-align: middle;
-    }
-    .record-arrow { color: var(--sep); font-size: 20px; pointer-events: none; }
-    .empty-state { text-align: center; padding: 50px 20px; color: var(--text2); }
-    .empty-state .empty-icon { font-size: 44px; margin-bottom: 10px; }
-    .empty-state p { font-size: 15px; }
-
-    /* ── List tab ── */
-    .list-header-row {
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
-    }
-    .count-badge {
-      font-size: 13px; color: var(--text2);
-      background: var(--card); padding: 4px 10px; border-radius: 20px;
-    }
-
-    /* ── Report tab ── */
-    .report-card {
-      background: var(--card); border-radius: 12px;
-      padding: 18px; margin-bottom: 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
-    }
-    .report-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
-    .stat-row { display: flex; gap: 10px; }
-    .stat-box { flex: 1; background: var(--bg); border-radius: 10px; padding: 12px; text-align: center; }
-    .stat-num { font-size: 28px; font-weight: 700; color: var(--red); }
-    .stat-label { font-size: 12px; color: var(--text2); margin-top: 2px; }
-    .preview-box {
-      background: var(--bg); border-radius: 10px; padding: 14px;
-      font-size: 12px; line-height: 1.7; color: var(--text);
-      white-space: pre-wrap; max-height: 220px; overflow-y: auto;
-      font-family: 'Courier New', monospace;
-    }
-    .audio-attach-area {
-      border: 2px dashed var(--sep); border-radius: 10px;
-      padding: 16px; text-align: center; cursor: pointer;
-      color: var(--blue); font-size: 14px;
-      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-    }
-    .audio-file-list { margin-top: 8px; }
-    .audio-file-item {
-      display: flex; align-items: center; justify-content: space-between;
-      background: var(--bg); border-radius: 8px; padding: 10px 12px; margin-top: 8px;
-    }
-    .audio-file-item span { font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .audio-file-item button {
-      border: none; background: none; color: var(--red);
-      font-size: 18px; cursor: pointer; padding: 0 4px; flex-shrink: 0;
-      touch-action: manipulation;
-    }
-    #audioFilesInput { display: none; }
-
-    .sync-box {
-      background: var(--bg); border-radius: 10px; padding: 14px; margin-bottom: 10px;
-    }
-    .sync-box p { font-size: 13px; color: var(--text2); margin-bottom: 10px; }
-    .sync-row { display: flex; gap: 8px; }
-    .sync-row button { flex: 1; }
-
-    .btn-primary {
-      display: block; width: 100%; padding: 15px;
-      background: var(--blue); color: #fff; border: none;
-      border-radius: 14px; font-size: 16px; font-weight: 600;
-      cursor: pointer; text-align: center; margin-top: 8px;
-      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-      font-family: inherit;
-    }
-    .btn-primary.red { background: var(--red); }
-    .btn-primary.green { background: var(--green); }
-    .btn-primary.gray { background: #8e8e93; }
-    .btn-primary.orange { background: var(--orange); }
-
-    /* ── Tab bar ── */
-    .tab-bar {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      background: rgba(242,242,247,0.92);
-      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-      border-top: 1px solid var(--sep);
-      display: flex; padding-bottom: var(--safe-bot); z-index: 20;
-    }
-    .tab-btn {
-      flex: 1; border: none; background: none;
-      padding: 8px 0; cursor: pointer;
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-      color: var(--text2); font-size: 10px; font-weight: 500;
-      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-      font-family: inherit;
-    }
-    .tab-btn .t-icon { font-size: 22px; }
-    .tab-btn.active { color: var(--red); }
-
-    /* ── Modals ── */
-    .modal-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.5); z-index: 50;
-      align-items: flex-end; justify-content: center;
-    }
-    .modal-overlay.open { display: flex; }
-    .modal {
-      background: var(--card); border-radius: 20px 20px 0 0;
-      padding: 20px 20px calc(24px + var(--safe-bot));
-      width: 100%; max-width: 520px;
-      animation: slideUp .25s ease;
-      max-height: 92vh; overflow-y: auto;
-    }
-    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-    .modal-handle { width: 36px; height: 4px; background: var(--sep); border-radius: 2px; margin: 0 auto 16px; }
-    .modal h2 { font-size: 17px; font-weight: 700; margin-bottom: 12px; }
-    .modal label { font-size: 13px; font-weight: 600; color: var(--text2); display: block; margin-bottom: 6px; margin-top: 14px; }
-    .modal label:first-of-type { margin-top: 0; }
-    .modal textarea, .modal input[type="datetime-local"] {
-      width: 100%; border: 1px solid var(--sep); border-radius: 10px;
-      padding: 12px; font-size: 15px; font-family: inherit;
-      background: var(--bg); color: var(--text);
-      -webkit-appearance: none; outline: none; resize: none;
-    }
-    .modal textarea:focus, .modal input[type="datetime-local"]:focus { border-color: var(--blue); }
-
-    /* Time toggle */
-    .time-toggle {
-      display: flex; background: var(--bg); border-radius: 10px;
-      padding: 2px; margin-bottom: 14px;
-    }
-    .time-toggle button {
-      flex: 1; border: none; padding: 9px 4px; border-radius: 8px;
-      font-size: 14px; font-weight: 500; cursor: pointer;
-      background: none; color: var(--text2);
-      touch-action: manipulation; font-family: inherit;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .time-toggle button.active {
-      background: var(--card); color: var(--text); font-weight: 600;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-    }
-    .timestamp-display {
-      font-size: 20px; font-weight: 700; color: var(--red);
-      margin-bottom: 14px; letter-spacing: -0.3px;
-    }
-
-    .modal-btns { display: flex; gap: 10px; margin-top: 18px; }
-    .modal-btns button {
-      flex: 1; padding: 14px; border: none; border-radius: 12px;
-      font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit;
-      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-    }
-    .btn-cancel { background: var(--bg); color: var(--text); }
-    .btn-save { background: var(--red); color: #fff; }
-    .btn-detail-save { background: var(--blue); color: #fff; width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; touch-action: manipulation; }
-    .btn-delete { background: #FFE5E5; color: var(--red); width: 100%; margin-top: 8px; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; touch-action: manipulation; }
-    .btn-close { background: var(--bg); color: var(--text); width: 100%; margin-top: 8px; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; touch-action: manipulation; }
-
-    /* Toast */
-    .toast {
-      position: fixed; bottom: calc(80px + var(--safe-bot));
-      left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.82); color: #fff;
-      padding: 10px 22px; border-radius: 22px;
-      font-size: 14px; font-weight: 500; z-index: 100;
-      opacity: 0; transition: opacity .25s;
-      white-space: nowrap; pointer-events: none;
-    }
-    .toast.show { opacity: 1; }
+    :root{--red:#FF3B30;--red-s:rgba(255,59,48,.35);--blue:#007AFF;--green:#34C759;--orange:#FF9500;--purple:#AF52DE;--bg:#F2F2F7;--card:#FFF;--text:#1C1C1E;--text2:#8E8E93;--sep:rgba(60,60,67,.18);--safe-top:env(safe-area-inset-top,44px);--safe-bot:env(safe-area-inset-bottom,34px);}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(60px + var(--safe-bot));-webkit-font-smoothing:antialiased;cursor:pointer;}
+    .header{background:rgba(242,242,247,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:calc(var(--safe-top)+8px) 16px 12px;border-bottom:1px solid var(--sep);position:sticky;top:0;z-index:20;text-align:center;}
+    .header h1{font-size:17px;font-weight:700;}.header p{font-size:12px;color:var(--text2);margin-top:2px;}
+    .page{display:none;padding:20px 16px;}.page.active{display:block;}
+    .record-center{display:flex;flex-direction:column;align-items:center;padding:32px 0 20px;}
+    .record-btn{width:190px;height:190px;border-radius:50%;background:var(--red);border:none;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 6px 32px var(--red-s);touch-action:manipulation;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;cursor:pointer;}
+    .record-btn .btn-icon{font-size:50px;pointer-events:none;}.record-btn .btn-label{font-size:15px;font-weight:700;pointer-events:none;}
+    .record-hint{font-size:13px;color:var(--text2);margin-top:14px;text-align:center;}
+    .manual-add-btn{display:inline-block;margin-top:10px;border:none;background:none;color:var(--blue);font-size:14px;cursor:pointer;padding:8px 16px;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+    .section-title{font-size:13px;font-weight:600;color:var(--text2);letter-spacing:.5px;margin-bottom:8px;padding:0 4px;}
+    .card{background:var(--card);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07);}
+    .record-item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--sep);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+    .record-item:last-child{border-bottom:none;}.record-item.pressing{background:#ebebf0;}
+    .record-badge{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--red),#FF6B6B);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;pointer-events:none;}
+    .record-badge.has-audio{background:linear-gradient(135deg,var(--purple),#C97FE8);}
+    .record-info{flex:1;min-width:0;pointer-events:none;}.record-datetime{font-size:15px;font-weight:600;}
+    .record-meta{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;}
+    .record-note{font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
+    .badge{font-size:11px;padding:1px 7px;border-radius:20px;font-weight:600;white-space:nowrap;}
+    .badge-manual{background:#fff3e0;color:var(--orange);}.badge-audio{background:#f0e8ff;color:var(--purple);}
+    .record-arrow{color:var(--sep);font-size:20px;pointer-events:none;}
+    .empty-state{text-align:center;padding:50px 20px;color:var(--text2);}.empty-state .empty-icon{font-size:44px;margin-bottom:10px;}.empty-state p{font-size:15px;}
+    .list-header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+    .count-badge{font-size:13px;color:var(--text2);background:var(--card);padding:4px 10px;border-radius:20px;}
+    .report-card{background:var(--card);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.07);}
+    .report-card h3{font-size:15px;font-weight:600;margin-bottom:12px;}
+    .stat-row{display:flex;gap:10px;}.stat-box{flex:1;background:var(--bg);border-radius:10px;padding:12px;text-align:center;}
+    .stat-num{font-size:28px;font-weight:700;color:var(--red);}.stat-label{font-size:12px;color:var(--text2);margin-top:2px;}
+    .preview-box{background:var(--bg);border-radius:10px;padding:14px;font-size:12px;line-height:1.7;color:var(--text);white-space:pre-wrap;max-height:220px;overflow-y:auto;font-family:'Courier New',monospace;}
+    .sync-box{background:var(--bg);border-radius:10px;padding:14px;margin-bottom:10px;}.sync-box p{font-size:13px;color:var(--text2);margin-bottom:10px;}
+    .sync-row{display:flex;gap:8px;}.sync-row button{flex:1;}
+    .btn-primary{display:block;width:100%;padding:15px;background:var(--blue);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;text-align:center;margin-top:8px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;font-family:inherit;}
+    .btn-primary.green{background:var(--green);}.btn-primary.gray{background:#8e8e93;}.btn-primary.orange{background:var(--orange);}
+    .tab-bar{position:fixed;bottom:0;left:0;right:0;background:rgba(242,242,247,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--sep);display:flex;padding-bottom:var(--safe-bot);z-index:20;}
+    .tab-btn{flex:1;border:none;background:none;padding:8px 0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--text2);font-size:10px;font-weight:500;touch-action:manipulation;-webkit-tap-highlight-color:transparent;font-family:inherit;}
+    .tab-btn .t-icon{font-size:22px;}.tab-btn.active{color:var(--red);}
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;align-items:flex-end;justify-content:center;}
+    .modal-overlay.open{display:flex;}
+    .modal{background:var(--card);border-radius:20px 20px 0 0;padding:20px 20px calc(24px + var(--safe-bot));width:100%;max-width:520px;animation:slideUp .25s ease;max-height:92vh;overflow-y:auto;}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .modal-handle{width:36px;height:4px;background:var(--sep);border-radius:2px;margin:0 auto 16px;}
+    .modal h2{font-size:17px;font-weight:700;margin-bottom:12px;}
+    .modal label{font-size:13px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px;margin-top:14px;}
+    .modal textarea,.modal input[type="datetime-local"]{width:100%;border:1px solid var(--sep);border-radius:10px;padding:12px;font-size:15px;font-family:inherit;background:var(--bg);color:var(--text);-webkit-appearance:none;outline:none;resize:none;}
+    .modal textarea:focus,.modal input[type="datetime-local"]:focus{border-color:var(--blue);}
+    .audio-attach-row{display:flex;gap:10px;align-items:center;background:var(--bg);border-radius:10px;padding:12px;border:1.5px dashed var(--sep);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+    .audio-attach-row .aa-icon{font-size:22px;}.audio-attach-row .aa-text{flex:1;}
+    .audio-attach-row .aa-title{font-size:14px;color:var(--blue);font-weight:600;}
+    .audio-attach-row .aa-sub{font-size:11px;color:var(--text2);margin-top:1px;}
+    .attached-audio{background:var(--bg);border-radius:10px;padding:12px;margin-top:8px;}
+    .attached-audio-name{font-size:13px;font-weight:600;color:var(--purple);margin-bottom:8px;display:flex;align-items:center;gap:6px;word-break:break-all;}
+    .attached-audio audio{width:100%;}
+    .attached-audio-remove{border:none;background:none;color:var(--red);font-size:13px;cursor:pointer;margin-top:8px;display:block;touch-action:manipulation;font-family:inherit;padding:4px 0;}
+    .time-toggle{display:flex;background:var(--bg);border-radius:10px;padding:2px;margin-bottom:14px;}
+    .time-toggle button{flex:1;border:none;padding:9px 4px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;background:none;color:var(--text2);touch-action:manipulation;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+    .time-toggle button.active{background:var(--card);color:var(--text);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.12);}
+    .timestamp-display{font-size:20px;font-weight:700;color:var(--red);margin-bottom:14px;letter-spacing:-.3px;}
+    .modal-btns{display:flex;gap:10px;margin-top:18px;}
+    .modal-btns button{flex:1;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+    .btn-cancel{background:var(--bg);color:var(--text);}.btn-save{background:var(--red);color:#fff;}
+    .btn-detail-save{background:var(--blue);color:#fff;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;margin-top:16px;display:block;}
+    .btn-delete{background:#FFE5E5;color:var(--red);width:100%;margin-top:8px;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;}
+    .btn-close{background:var(--bg);color:var(--text);width:100%;margin-top:8px;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;}
+    .toast{position:fixed;bottom:calc(80px + var(--safe-bot));left:50%;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;padding:10px 22px;border-radius:22px;font-size:14px;font-weight:500;z-index:100;opacity:0;transition:opacity .25s;white-space:nowrap;pointer-events:none;}
+    .toast.show{opacity:1;}
   </style>
 </head>
 <body>
-
-<div class="header">
-  <h1>🔇 騒音記録</h1>
-  <p>騒音が発生したらボタンを押してください</p>
-</div>
-
-<!-- ── 記録タブ ── -->
+<div class="header"><h1>🔇 騒音記録</h1><p>騒音が発生したらボタンを押してください</p></div>
 <div class="page active" id="page-record">
   <div class="record-center">
-    <button class="record-btn" id="mainRecordBtn">
-      <span class="btn-icon">🔴</span>
-      <span class="btn-label">騒音を記録</span>
-    </button>
+    <button class="record-btn" id="mainRecordBtn"><span class="btn-icon">🔴</span><span class="btn-label">騒音を記録</span></button>
     <p class="record-hint">タップで日時を自動記録します</p>
     <button class="manual-add-btn" id="manualAddBtn">＋ 過去の記録を手動で追加</button>
   </div>
-
   <div class="section-title">直近の記録</div>
-  <div class="card" id="recent-list">
-    <div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>
-  </div>
+  <div class="card" id="recent-list"><div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div></div>
 </div>
-
-<!-- ── 一覧タブ ── -->
 <div class="page" id="page-list">
-  <div class="list-header-row">
-    <div class="section-title" style="margin-bottom:0">すべての記録</div>
-    <span class="count-badge" id="list-count">0件</span>
-  </div>
-  <div style="margin-top:8px">
-    <div class="card" id="full-list">
-      <div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>
-    </div>
-  </div>
+  <div class="list-header-row"><div class="section-title" style="margin-bottom:0">すべての記録</div><span class="count-badge" id="list-count">0件</span></div>
+  <div style="margin-top:8px"><div class="card" id="full-list"><div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div></div></div>
 </div>
-
-<!-- ── レポートタブ ── -->
 <div class="page" id="page-report">
-  <div class="report-card">
-    <h3>📊 集計</h3>
-    <div class="stat-row">
-      <div class="stat-box">
-        <div class="stat-num" id="stat-total">0</div>
-        <div class="stat-label">総件数</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-num" id="stat-month">0</div>
-        <div class="stat-label">今月</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-num" id="stat-week">0</div>
-        <div class="stat-label">今週</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="report-card">
-    <h3>📄 報告テキスト（プレビュー）</h3>
-    <div class="preview-box" id="report-preview">記録がまだありません。</div>
-  </div>
-
-  <div class="report-card">
-    <h3>🔄 PCとデータを同期</h3>
-    <div class="sync-box">
-      <p>PCのブラウザでこのHTMLを開き、「データを読み込む」でiPhoneの記録を取り込めます。</p>
-      <div class="sync-row">
-        <button class="btn-primary orange" onclick="exportData()" style="margin-top:0;font-size:14px;padding:12px">📤 データを書き出す</button>
-        <button class="btn-primary gray" onclick="document.getElementById('importFile').click()" style="margin-top:0;font-size:14px;padding:12px">📥 データを読み込む</button>
-      </div>
-      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
-    </div>
-  </div>
-
-  <div class="report-card">
-    <h3>🎤 録音ファイルを添付</h3>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">iPhoneのボイスメモや録音ファイルを選択してください</p>
-    <div class="audio-attach-area" id="audioAttachArea">＋ 録音ファイルを選択</div>
-    <input type="file" id="audioFilesInput" accept="audio/*" multiple onchange="addAudioFiles(this)">
-    <div class="audio-file-list" id="audio-file-list"></div>
-  </div>
-
-  <button class="btn-primary green" id="shareBtn">📤 メール／共有アプリで送る</button>
+  <div class="report-card"><h3>📊 集計</h3><div class="stat-row"><div class="stat-box"><div class="stat-num" id="stat-total">0</div><div class="stat-label">総件数</div></div><div class="stat-box"><div class="stat-num" id="stat-month">0</div><div class="stat-label">今月</div></div><div class="stat-box"><div class="stat-num" id="stat-week">0</div><div class="stat-label">今週</div></div></div></div>
+  <div class="report-card"><h3>📄 報告テキスト（プレビュー）</h3><div class="preview-box" id="report-preview">記録がまだありません。</div></div>
+  <div class="report-card"><h3>🔄 PCとデータを同期</h3><div class="sync-box"><p>PCのブラウザでこのページを開き、「読み込む」でiPhoneの記録を取り込めます。録音ファイルも含まれます。</p><div class="sync-row"><button class="btn-primary orange" id="exportBtn" style="margin-top:0;font-size:14px;padding:12px">📤 書き出す</button><button class="btn-primary gray" id="importTriggerBtn" style="margin-top:0;font-size:14px;padding:12px">📥 読み込む</button></div><input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)"></div></div>
+  <button class="btn-primary green" id="shareBtn">📤 メール／共有で送る（録音も含む）</button>
   <button class="btn-primary gray" id="copyBtn" style="margin-top:10px">📋 テキストをコピー</button>
 </div>
-
-<!-- ── タブバー ── -->
 <div class="tab-bar">
   <button class="tab-btn active" id="tab-record"><span class="t-icon">🔴</span>記録</button>
   <button class="tab-btn" id="tab-list"><span class="t-icon">📋</span>一覧</button>
   <button class="tab-btn" id="tab-report"><span class="t-icon">📤</span>レポート</button>
 </div>
-
-<!-- ── 記録モーダル ── -->
 <div class="modal-overlay" id="record-modal">
   <div class="modal">
-    <div class="modal-handle"></div>
-    <h2>騒音を記録する</h2>
-    <div class="time-toggle">
-      <button id="toggle-auto">🕐 現在時刻</button>
-      <button id="toggle-manual">✏️ 日時を指定</button>
-    </div>
+    <div class="modal-handle"></div><h2>騒音を記録する</h2>
+    <div class="time-toggle"><button id="toggle-auto">🕐 現在時刻</button><button id="toggle-manual">✏️ 日時を指定</button></div>
     <div class="timestamp-display" id="modal-timestamp"></div>
-    <div id="manual-datetime-wrap" style="display:none;margin-bottom:14px">
-      <input type="datetime-local" id="manual-datetime">
-    </div>
+    <div id="manual-datetime-wrap" style="display:none;margin-bottom:14px"><input type="datetime-local" id="manual-datetime"></div>
     <label>メモ（任意）</label>
     <textarea id="record-note" rows="3" placeholder="例：上の階からドン、廊下で怒鳴り声、深夜0時以降…"></textarea>
-    <div class="modal-btns">
-      <button class="btn-cancel" id="recordCancelBtn">キャンセル</button>
-      <button class="btn-save" id="recordSaveBtn">保存</button>
+    <label>録音ファイルを添付（任意）</label>
+    <div class="audio-attach-row" id="recordAudioAttachBtn">
+      <span class="aa-icon">🎤</span>
+      <div class="aa-text"><div class="aa-title">録音ファイルを選択</div><div class="aa-sub">ボイスメモ・m4a・mp3 など対応</div></div>
+      <span style="color:var(--text2)">›</span>
     </div>
+    <input type="file" id="recordAudioInput" accept="audio/*,.m4a,.mp3,.aac,.wav,audio/x-m4a,audio/mp4" style="display:none" onchange="onRecordAudioSelected(this)">
+    <div id="record-audio-preview" style="display:none" class="attached-audio">
+      <div class="attached-audio-name">🎤 <span id="record-audio-name"></span></div>
+      <audio id="record-audio-player" controls></audio>
+      <button class="attached-audio-remove" id="recordAudioRemoveBtn">✕ 録音を削除</button>
+    </div>
+    <div class="modal-btns"><button class="btn-cancel" id="recordCancelBtn">キャンセル</button><button class="btn-save" id="recordSaveBtn">保存</button></div>
   </div>
 </div>
-
-<!-- ── 詳細モーダル ── -->
 <div class="modal-overlay" id="detail-modal">
   <div class="modal">
-    <div class="modal-handle"></div>
-    <h2>記録の詳細</h2>
+    <div class="modal-handle"></div><h2>記録の詳細</h2>
     <input type="hidden" id="detail-id">
-    <label>日時（変更できます）</label>
-    <input type="datetime-local" id="detail-datetime">
-    <label>メモ</label>
-    <textarea class="detail-note-edit" id="detail-note" rows="3" placeholder="メモを入力…"></textarea>
-    <br>
-    <button class="btn-detail-save" id="detailSaveBtn" style="margin-top:16px">変更を保存</button>
+    <label>日時（変更できます）</label><input type="datetime-local" id="detail-datetime">
+    <label>メモ</label><textarea id="detail-note" rows="3" placeholder="メモを入力…"></textarea>
+    <label>録音ファイル</label>
+    <div id="detail-no-audio">
+      <div class="audio-attach-row" id="detailAudioAttachBtn">
+        <span class="aa-icon">🎤</span>
+        <div class="aa-text"><div class="aa-title">録音ファイルを添付</div><div class="aa-sub">ボイスメモ・m4a・mp3 など対応</div></div>
+        <span style="color:var(--text2)">›</span>
+      </div>
+    </div>
+    <div id="detail-has-audio" style="display:none" class="attached-audio">
+      <div class="attached-audio-name">🎤 <span id="detail-audio-name"></span></div>
+      <audio id="detail-audio-player" controls></audio>
+      <button class="attached-audio-remove" id="detailAudioRemoveBtn">✕ 録音を削除</button>
+      <div class="audio-attach-row" id="detailAudioReplaceBtn" style="margin-top:8px">
+        <span class="aa-icon">🔄</span><div class="aa-text"><div class="aa-title">別のファイルに差し替え</div></div><span style="color:var(--text2)">›</span>
+      </div>
+    </div>
+    <input type="file" id="detailAudioInput" accept="audio/*,.m4a,.mp3,.aac,.wav,audio/x-m4a,audio/mp4" style="display:none" onchange="onDetailAudioSelected(this)">
+    <button class="btn-detail-save" id="detailSaveBtn">変更を保存</button>
     <button class="btn-delete" id="detailDeleteBtn">🗑 この記録を削除</button>
     <button class="btn-close" id="detailCloseBtn">閉じる</button>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
-
 <script>
-// ─── Storage ───────────────────────────────────────────
-const STORAGE_KEY = 'soonRec_v1';
-function loadRecords() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
-}
-function saveRecords(r) { localStorage.setItem(STORAGE_KEY, JSON.stringify(r)); }
-function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
-
-// ─── Helpers ───────────────────────────────────────────
-const DAYS = ['日','月','火','水','木','金','土'];
-function pad(n) { return String(n).padStart(2,'0'); }
-function formatDatetime(d) {
-  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}（${DAYS[d.getDay()]}） ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-function toLocalISO(d) {
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-function escapeHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+const STORAGE_KEY='soonRec_v1';
+function loadRecords(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}catch{return[];}}
+function saveRecords(r){localStorage.setItem(STORAGE_KEY,JSON.stringify(r));}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+const DAYS=['日','月','火','水','木','金','土'];
+function pad(n){return String(n).padStart(2,'0');}
+function formatDatetime(d){return d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate())+'（'+DAYS[d.getDay()]+'） '+pad(d.getHours())+':'+pad(d.getMinutes());}
+function toLocalISO(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());}
+function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 let toastTimer;
-function showToast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
-}
-
-// ─── iOSタップ対応：タッチイベントを確実に処理 ────────────
-function tapify(el, fn) {
-  let moved = false;
-  el.addEventListener('touchstart', () => { moved = false; }, { passive: true });
-  el.addEventListener('touchmove', () => { moved = true; }, { passive: true });
-  el.addEventListener('touchend', (e) => {
-    if (!moved) { e.preventDefault(); fn(); }
-  });
-  el.addEventListener('click', fn); // PC用フォールバック
-}
-
-// ─── Tabs ──────────────────────────────────────────────
-function switchTab(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  document.getElementById('tab-' + name).classList.add('active');
-  if (name === 'list') renderFullList();
-  if (name === 'report') renderReport();
-  if (name === 'record') renderRecentList();
-}
-tapify(document.getElementById('tab-record'), () => switchTab('record'));
-tapify(document.getElementById('tab-list'),   () => switchTab('list'));
-tapify(document.getElementById('tab-report'), () => switchTab('report'));
-
-// ─── Record Modal ──────────────────────────────────────
-let currentTimestamp = null;
-let timeMode = 'auto';
-
-function setTimeMode(mode) {
-  timeMode = mode;
-  document.getElementById('toggle-auto').classList.toggle('active', mode === 'auto');
-  document.getElementById('toggle-manual').classList.toggle('active', mode === 'manual');
-  document.getElementById('modal-timestamp').style.display = mode === 'auto' ? 'block' : 'none';
-  document.getElementById('manual-datetime-wrap').style.display = mode === 'manual' ? 'block' : 'none';
-}
-
-function openRecordModal(manual) {
-  currentTimestamp = new Date();
-  document.getElementById('modal-timestamp').textContent = formatDatetime(currentTimestamp);
-  document.getElementById('manual-datetime').value = toLocalISO(currentTimestamp);
-  document.getElementById('record-note').value = '';
-  setTimeMode(manual ? 'manual' : 'auto');
-  document.getElementById('record-modal').classList.add('open');
-}
-
-tapify(document.getElementById('mainRecordBtn'),  () => openRecordModal(false));
-tapify(document.getElementById('manualAddBtn'),   () => openRecordModal(true));
-tapify(document.getElementById('toggle-auto'),    () => setTimeMode('auto'));
-tapify(document.getElementById('toggle-manual'),  () => setTimeMode('manual'));
-
-tapify(document.getElementById('recordCancelBtn'), () => closeModal('record-modal'));
-tapify(document.getElementById('recordSaveBtn'), () => {
-  let ts;
-  if (timeMode === 'manual') {
-    const val = document.getElementById('manual-datetime').value;
-    if (!val) { showToast('⚠️ 日時を入力してください'); return; }
-    ts = new Date(val).toISOString();
-  } else {
-    ts = currentTimestamp.toISOString();
-  }
-  const records = loadRecords();
-  const note = document.getElementById('record-note').value.trim();
-  records.push({ id: genId(), ts, note, manual: timeMode === 'manual' });
-  records.sort((a,b) => new Date(b.ts) - new Date(a.ts));
-  saveRecords(records);
-  closeModal('record-modal');
-  renderRecentList();
-  showToast('✅ 記録しました');
-});
-
-// ─── Detail Modal ──────────────────────────────────────
-function openDetail(id) {
-  const rec = loadRecords().find(r => r.id === id);
-  if (!rec) return;
-  document.getElementById('detail-id').value = id;
-  document.getElementById('detail-datetime').value = toLocalISO(new Date(rec.ts));
-  document.getElementById('detail-note').value = rec.note || '';
-  document.getElementById('detail-modal').classList.add('open');
-}
-
-tapify(document.getElementById('detailSaveBtn'), () => {
-  const id = document.getElementById('detail-id').value;
-  const note = document.getElementById('detail-note').value.trim();
-  const dtVal = document.getElementById('detail-datetime').value;
-  const records = loadRecords();
-  const idx = records.findIndex(r => r.id === id);
-  if (idx >= 0) {
-    records[idx].note = note;
-    if (dtVal) records[idx].ts = new Date(dtVal).toISOString();
-    records.sort((a,b) => new Date(b.ts) - new Date(a.ts));
-    saveRecords(records);
-    renderRecentList(); renderFullList();
-  }
-  closeModal('detail-modal');
-  showToast('✅ 更新しました');
-});
-
-tapify(document.getElementById('detailDeleteBtn'), () => {
-  if (!confirm('この記録を削除しますか？')) return;
-  const id = document.getElementById('detail-id').value;
-  saveRecords(loadRecords().filter(r => r.id !== id));
-  closeModal('detail-modal');
-  renderRecentList(); renderFullList();
-  showToast('🗑 削除しました');
-});
-tapify(document.getElementById('detailCloseBtn'), () => closeModal('detail-modal'));
-
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-
-// モーダルの背景タップで閉じる
-document.querySelectorAll('.modal-overlay').forEach(el => {
-  el.addEventListener('touchend', e => { if (e.target === el) closeModal(el.id); });
-  el.addEventListener('click',    e => { if (e.target === el) closeModal(el.id); });
-});
-
-// ─── Render ────────────────────────────────────────────
-function makeRecordHTML(rec) {
-  const d = new Date(rec.ts);
-  const datetime = formatDatetime(d);
-  const manualBadge = rec.manual ? '<span class="record-manual-badge">手動</span>' : '';
-  const noteHTML = rec.note ? `<div class="record-note">${escapeHtml(rec.note)}</div>` : '';
-  return `<div class="record-item" data-id="${rec.id}">
-    <div class="record-badge">🔊</div>
-    <div class="record-info">
-      <div class="record-datetime">${escapeHtml(datetime)}${manualBadge}</div>
-      ${noteHTML}
-    </div>
-    <div class="record-arrow">›</div>
-  </div>`;
-}
-
-function bindRecordItems(container) {
-  container.querySelectorAll('.record-item').forEach(item => {
-    tapify(item, () => openDetail(item.dataset.id));
-  });
-}
-
-function renderRecentList() {
-  const records = loadRecords().slice(0,5);
-  const el = document.getElementById('recent-list');
-  if (!records.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>`;
-  } else {
-    el.innerHTML = records.map(makeRecordHTML).join('');
-    bindRecordItems(el);
-  }
-}
-
-function renderFullList() {
-  const records = loadRecords();
-  const el = document.getElementById('full-list');
-  document.getElementById('list-count').textContent = records.length + '件';
-  if (!records.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>`;
-  } else {
-    el.innerHTML = records.map(makeRecordHTML).join('');
-    bindRecordItems(el);
-  }
-}
-
-// ─── Report ────────────────────────────────────────────
-let selectedAudioFiles = [];
-
-tapify(document.getElementById('audioAttachArea'), () => document.getElementById('audioFilesInput').click());
-
-function addAudioFiles(input) {
-  Array.from(input.files).forEach(f => {
-    if (!selectedAudioFiles.find(x => x.name === f.name)) selectedAudioFiles.push(f);
-  });
-  renderAudioList();
-}
-function removeAudio(name) {
-  selectedAudioFiles = selectedAudioFiles.filter(f => f.name !== name);
-  renderAudioList();
-}
-function renderAudioList() {
-  document.getElementById('audio-file-list').innerHTML = selectedAudioFiles.map(f =>
-    `<div class="audio-file-item">
-      <span>🎤 ${escapeHtml(f.name)}</span>
-      <button onclick="removeAudio('${escapeHtml(f.name).replace(/'/g,"\\'")}')">✕</button>
-    </div>`
-  ).join('');
-}
-
-function buildReportText() {
-  const records = loadRecords();
-  if (!records.length) return '記録がありません。';
-  const now = new Date();
-  let text = `━━━━━━━━━━━━━━━━━━━━━━\n　騒音発生記録レポート\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-  text += `作成日時：${formatDatetime(now)}\n記録件数：${records.length}件\n\n`;
-  records.forEach((rec, i) => {
-    text += `【${i+1}】${formatDatetime(new Date(rec.ts))}${rec.manual ? '（手動入力）' : ''}\n`;
-    if (rec.note) text += `　備考：${rec.note}\n`;
-    text += '\n';
-  });
-  text += `━━━━━━━━━━━━━━━━━━━━━━\n※ このレポートは騒音記録アプリにより自動生成されました。`;
-  return text;
-}
-
-function renderReport() {
-  const records = loadRecords();
-  const now = new Date();
-  const thisMonth = records.filter(r => { const d = new Date(r.ts); return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth(); });
-  const weekAgo = new Date(now - 7*24*60*60*1000);
-  const thisWeek = records.filter(r => new Date(r.ts) >= weekAgo);
-  document.getElementById('stat-total').textContent = records.length;
-  document.getElementById('stat-month').textContent = thisMonth.length;
-  document.getElementById('stat-week').textContent = thisWeek.length;
-  document.getElementById('report-preview').textContent = buildReportText();
-}
-
-tapify(document.getElementById('shareBtn'), async () => {
-  const text = buildReportText();
-  const subject = '騒音発生記録レポート';
-  if (navigator.share) {
-    try {
-      const sd = { title: subject, text };
-      if (selectedAudioFiles.length > 0 && navigator.canShare && navigator.canShare({ files: selectedAudioFiles })) sd.files = selectedAudioFiles;
-      await navigator.share(sd);
-      showToast('✅ 共有しました');
-    } catch(e) { if (e.name !== 'AbortError') fallbackMailto(subject, text); }
-  } else { fallbackMailto(subject, text); }
-});
-
-function fallbackMailto(subject, text) {
-  window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
-  if (selectedAudioFiles.length > 0) setTimeout(() => showToast('⚠️ 録音ファイルは手動で添付してください'), 1000);
-}
-
-tapify(document.getElementById('copyBtn'), () => {
-  const text = buildReportText();
-  if (navigator.clipboard) { navigator.clipboard.writeText(text).then(() => showToast('📋 コピーしました')); }
-  else {
-    const ta = document.createElement('textarea'); ta.value = text;
-    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-    document.body.removeChild(ta); showToast('📋 コピーしました');
-  }
-});
-
-// ─── データ同期（エクスポート/インポート） ──────────────────
-function exportData() {
-  const records = loadRecords();
-  if (!records.length) { showToast('⚠️ 記録がありません'); return; }
-  const json = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), records }, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const now = new Date();
-  a.href = url;
-  a.download = `騒音記録_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}.json`;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
-  showToast('📤 書き出しました');
-}
-
-function importData(input) {
-  const file = input.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const data = JSON.parse(e.target.result);
-      const incoming = data.records || [];
-      if (!incoming.length) { showToast('⚠️ データが空です'); return; }
-      const existing = loadRecords();
-      const existIds = new Set(existing.map(r => r.id));
-      const merged = [...existing, ...incoming.filter(r => !existIds.has(r.id))];
-      merged.sort((a,b) => new Date(b.ts) - new Date(a.ts));
-      saveRecords(merged);
-      renderRecentList(); renderReport();
-      showToast(`✅ ${incoming.length}件を読み込みました`);
-    } catch { showToast('❌ 読み込みに失敗しました'); }
-  };
-  reader.readAsText(file);
-  input.value = '';
-}
-
-// ─── Init ──────────────────────────────────────────────
+function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2800);}
+function tapify(el,fn){if(!el)return;let moved=false;el.addEventListener('touchstart',()=>{moved=false;},{passive:true});el.addEventListener('touchmove',()=>{moved=true;},{passive:true});el.addEventListener('touchend',(e)=>{if(!moved){e.preventDefault();fn();}});el.addEventListener('click',fn);}
+const MAX_MB=25;
+function readFileAsBase64(file){return new Promise((resolve,reject)=>{if(file.size>MAX_MB*1024*1024){reject(new Error('ファイルが'+MAX_MB+'MBを超えています'));return;}const r=new FileReader();r.onload=e=>resolve(e.target.result);r.onerror=reject;r.readAsDataURL(file);});}
+let recordAudioData=null;
+function onRecordAudioSelected(input){const file=input.files[0];if(!file)return;showToast('⏳ 読み込み中…');readFileAsBase64(file).then(dataUrl=>{recordAudioData={name:file.name,dataUrl};document.getElementById('record-audio-name').textContent=file.name;document.getElementById('record-audio-player').src=dataUrl;document.getElementById('record-audio-preview').style.display='block';showToast('✅ 録音を添付しました');}).catch(e=>showToast('❌ '+e.message));input.value='';}
+tapify(document.getElementById('recordAudioAttachBtn'),()=>document.getElementById('recordAudioInput').click());
+tapify(document.getElementById('recordAudioRemoveBtn'),()=>{recordAudioData=null;document.getElementById('record-audio-preview').style.display='none';document.getElementById('record-audio-player').src='';showToast('🗑 録音を削除しました');});
+let detailAudioData=null;
+function showDetailAudio(audio){if(audio){document.getElementById('detail-audio-name').textContent=audio.name;document.getElementById('detail-audio-player').src=audio.dataUrl;document.getElementById('detail-no-audio').style.display='none';document.getElementById('detail-has-audio').style.display='block';}else{document.getElementById('detail-audio-player').src='';document.getElementById('detail-no-audio').style.display='block';document.getElementById('detail-has-audio').style.display='none';}}
+function onDetailAudioSelected(input){const file=input.files[0];if(!file)return;showToast('⏳ 読み込み中…');readFileAsBase64(file).then(dataUrl=>{detailAudioData={name:file.name,dataUrl};showDetailAudio(detailAudioData);showToast('✅ 録音を添付しました');}).catch(e=>showToast('❌ '+e.message));input.value='';}
+tapify(document.getElementById('detailAudioAttachBtn'),()=>document.getElementById('detailAudioInput').click());
+tapify(document.getElementById('detailAudioReplaceBtn'),()=>document.getElementById('detailAudioInput').click());
+tapify(document.getElementById('detailAudioRemoveBtn'),()=>{detailAudioData='remove';showDetailAudio(null);showToast('🗑 録音を削除しました（保存で確定）');});
+function switchTab(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');document.getElementById('tab-'+name).classList.add('active');if(name==='list')renderFullList();if(name==='report')renderReport();if(name==='record')renderRecentList();}
+tapify(document.getElementById('tab-record'),()=>switchTab('record'));
+tapify(document.getElementById('tab-list'),()=>switchTab('list'));
+tapify(document.getElementById('tab-report'),()=>switchTab('report'));
+let currentTimestamp=null,timeMode='auto';
+function setTimeMode(mode){timeMode=mode;document.getElementById('toggle-auto').classList.toggle('active',mode==='auto');document.getElementById('toggle-manual').classList.toggle('active',mode==='manual');document.getElementById('modal-timestamp').style.display=mode==='auto'?'block':'none';document.getElementById('manual-datetime-wrap').style.display=mode==='manual'?'block':'none';}
+function openRecordModal(manual){currentTimestamp=new Date();document.getElementById('modal-timestamp').textContent=formatDatetime(currentTimestamp);document.getElementById('manual-datetime').value=toLocalISO(currentTimestamp);document.getElementById('record-note').value='';recordAudioData=null;document.getElementById('record-audio-preview').style.display='none';document.getElementById('record-audio-player').src='';setTimeMode(manual?'manual':'auto');document.getElementById('record-modal').classList.add('open');}
+tapify(document.getElementById('mainRecordBtn'),()=>openRecordModal(false));
+tapify(document.getElementById('manualAddBtn'),()=>openRecordModal(true));
+tapify(document.getElementById('toggle-auto'),()=>setTimeMode('auto'));
+tapify(document.getElementById('toggle-manual'),()=>setTimeMode('manual'));
+tapify(document.getElementById('recordCancelBtn'),()=>closeModal('record-modal'));
+tapify(document.getElementById('recordSaveBtn'),()=>{let ts;if(timeMode==='manual'){const val=document.getElementById('manual-datetime').value;if(!val){showToast('⚠️ 日時を入力してください');return;}ts=new Date(val).toISOString();}else{ts=currentTimestamp.toISOString();}const records=loadRecords();const note=document.getElementById('record-note').value.trim();const rec={id:genId(),ts,note,manual:timeMode==='manual'};if(recordAudioData)rec.audio=recordAudioData;records.push(rec);records.sort((a,b)=>new Date(b.ts)-new Date(a.ts));saveRecords(records);closeModal('record-modal');renderRecentList();showToast(recordAudioData?'✅ 記録しました（録音あり🎤）':'✅ 記録しました');});
+function openDetail(id){const rec=loadRecords().find(r=>r.id===id);if(!rec)return;detailAudioData=null;document.getElementById('detail-id').value=id;document.getElementById('detail-datetime').value=toLocalISO(new Date(rec.ts));document.getElementById('detail-note').value=rec.note||'';showDetailAudio(rec.audio||null);document.getElementById('detail-modal').classList.add('open');}
+tapify(document.getElementById('detailSaveBtn'),()=>{const id=document.getElementById('detail-id').value;const note=document.getElementById('detail-note').value.trim();const dtVal=document.getElementById('detail-datetime').value;const records=loadRecords();const idx=records.findIndex(r=>r.id===id);if(idx>=0){records[idx].note=note;if(dtVal)records[idx].ts=new Date(dtVal).toISOString();if(detailAudioData==='remove')delete records[idx].audio;else if(detailAudioData&&detailAudioData!=='remove')records[idx].audio=detailAudioData;records.sort((a,b)=>new Date(b.ts)-new Date(a.ts));saveRecords(records);renderRecentList();renderFullList();}closeModal('detail-modal');showToast('✅ 更新しました');});
+tapify(document.getElementById('detailDeleteBtn'),()=>{if(!confirm('この記録を削除しますか？'))return;const id=document.getElementById('detail-id').value;saveRecords(loadRecords().filter(r=>r.id!==id));closeModal('detail-modal');renderRecentList();renderFullList();showToast('🗑 削除しました');});
+tapify(document.getElementById('detailCloseBtn'),()=>closeModal('detail-modal'));
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('touchend',e=>{if(e.target===el)closeModal(el.id);});el.addEventListener('click',e=>{if(e.target===el)closeModal(el.id);});});
+function makeRecordHTML(rec){const d=new Date(rec.ts);const hasAudio=!!rec.audio;const badges=[rec.manual?'<span class="badge badge-manual">手動</span>':'',hasAudio?'<span class="badge badge-audio">🎤 録音あり</span>':''].filter(Boolean).join('');const noteHTML=rec.note?'<div class="record-note">'+escapeHtml(rec.note)+'</div>':'';return '<div class="record-item" data-id="'+rec.id+'"><div class="record-badge'+(hasAudio?' has-audio':'')+'">'+( hasAudio?'🎤':'🔊')+'</div><div class="record-info"><div class="record-datetime">'+escapeHtml(formatDatetime(d))+'</div><div class="record-meta">'+badges+noteHTML+'</div></div><div class="record-arrow">›</div></div>';}
+function bindItems(container){container.querySelectorAll('.record-item').forEach(item=>{tapify(item,()=>openDetail(item.dataset.id));});}
+function renderRecentList(){const records=loadRecords().slice(0,5);const el=document.getElementById('recent-list');if(!records.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>';}else{el.innerHTML=records.map(makeRecordHTML).join('');bindItems(el);}}
+function renderFullList(){const records=loadRecords();const el=document.getElementById('full-list');document.getElementById('list-count').textContent=records.length+'件';if(!records.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>';}else{el.innerHTML=records.map(makeRecordHTML).join('');bindItems(el);}}
+function buildReportText(){const records=loadRecords();if(!records.length)return '記録がありません。';const now=new Date();let text='━━━━━━━━━━━━━━━━━━━━━━\n　騒音発生記録レポート\n━━━━━━━━━━━━━━━━━━━━━━\n';text+='作成日時：'+formatDatetime(now)+'\n記録件数：'+records.length+'件\n\n';records.forEach((rec,i)=>{text+='【'+(i+1)+'】'+formatDatetime(new Date(rec.ts))+(rec.manual?'（手動入力）':'')+'\n';if(rec.note)text+='　備考：'+rec.note+'\n';if(rec.audio)text+='　録音：'+rec.audio.name+'\n';text+='\n';});text+='━━━━━━━━━━━━━━━━━━━━━━\n※ このレポートは騒音記録アプリにより自動生成されました。';return text;}
+function renderReport(){const records=loadRecords();const now=new Date();const thisMonth=records.filter(r=>{const d=new Date(r.ts);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();});const weekAgo=new Date(now-7*24*60*60*1000);const thisWeek=records.filter(r=>new Date(r.ts)>=weekAgo);document.getElementById('stat-total').textContent=records.length;document.getElementById('stat-month').textContent=thisMonth.length;document.getElementById('stat-week').textContent=thisWeek.length;document.getElementById('report-preview').textContent=buildReportText();}
+async function base64ToFile(dataUrl,name){const res=await fetch(dataUrl);const blob=await res.blob();return new File([blob],name,{type:blob.type});}
+tapify(document.getElementById('shareBtn'),async()=>{const text=buildReportText();const subject='騒音発生記録レポート';const records=loadRecords();const audioFiles=[];for(const rec of records){if(rec.audio){try{audioFiles.push(await base64ToFile(rec.audio.dataUrl,rec.audio.name));}catch(e){}}}if(navigator.share){try{const sd={title:subject,text};if(audioFiles.length>0&&navigator.canShare&&navigator.canShare({files:audioFiles}))sd.files=audioFiles;await navigator.share(sd);showToast('✅ 共有しました');}catch(e){if(e.name!=='AbortError')window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);}}else{window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);}});
+tapify(document.getElementById('copyBtn'),()=>{const text=buildReportText();if(navigator.clipboard){navigator.clipboard.writeText(text).then(()=>showToast('📋 コピーしました'));}else{const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('📋 コピーしました');}});
+tapify(document.getElementById('exportBtn'),()=>{const records=loadRecords();if(!records.length){showToast('⚠️ 記録がありません');return;}const json=JSON.stringify({version:2,exportedAt:new Date().toISOString(),records},null,2);const blob=new Blob([json],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');const now=new Date();a.href=url;a.download='騒音記録_'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showToast('📤 書き出しました');});
+tapify(document.getElementById('importTriggerBtn'),()=>document.getElementById('importFile').click());
+function importData(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const data=JSON.parse(e.target.result);const incoming=data.records||[];if(!incoming.length){showToast('⚠️ データが空です');return;}const existing=loadRecords();const existIds=new Set(existing.map(r=>r.id));const merged=[...existing,...incoming.filter(r=>!existIds.has(r.id))];merged.sort((a,b)=>new Date(b.ts)-new Date(a.ts));saveRecords(merged);renderRecentList();renderReport();showToast('✅ '+incoming.length+'件を読み込みました');}catch{showToast('❌ 読み込みに失敗しました');}};reader.readAsText(file);input.value='';}
 renderRecentList();
 </script>
 </body>
