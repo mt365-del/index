@@ -86,16 +86,16 @@
     <button class="manual-add-btn" id="manualAddBtn">＋ 過去の記録を手動で追加</button>
   </div>
   <div class="section-title">直近の記録</div>
-  <div class="card" id="recent-list"><div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありませこ</p></div></div>
+  <div class="card" id="recent-list"><div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div></div>
 </div>
 <div class="page" id="page-list">
-  <div class="list-header-row"><div class="section-title" style="margin-bottom:0">すべての記録</div><span class="count-badge" id="list-count">0件</span></div>
+  <div class="list-header-row"><div class="section-title" style="margin-bottom:0">すべでの記録</div><span class="count-badge" id="list-count">0件</span></div>
   <div style="margin-top:8px"><div class="card" id="full-list"><div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div></div></div>
 </div>
 <div class="page" id="page-report">
   <div class="report-card"><h3>📊 集計</h3><div class="stat-row"><div class="stat-box"><div class="stat-num" id="stat-total">0</div><div class="stat-label">総件数</div></div><div class="stat-box"><div class="stat-num" id="stat-month">0</div><div class="stat-label">今月</div></div><div class="stat-box"><div class="stat-num" id="stat-week">0</div><div class="stat-label">今週</div></div></div></div>
   <div class="report-card"><h3>📄 報告テキスト（プレビュー）</h3><div class="preview-box" id="report-preview">記録がまだありません。</div></div>
-  <div class="report-card"><h3>🔄 PCとデータを同期</h3><div class="sync-box"><p>PCのブラウザでこのページを開き、「読み込む」でiPhoneの記録を取り込めます。録音ファイルも含まれます。</p><div class="sync-row"><button class="btn-primary orange" id="exportBtn" style="margin-top:0;font-size:14px;padding:12px">📤 書き出す</button><button class="btn-primary gray" id="importTriggerBtn" style="margin-top:0;font-size:14px;padding:12px">📥 読み込む</button></div><input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)"></div></div>
+  <div class="report-card"><h3>🔄 PCとデータを同期</h3><div class="sync-box"><p>PCのブラウスでこのページを開き、「読み込む」でiPhoneの記録を取り込めみ���。録音ファイルも含まれみ���。</p><div class="sync-row"><button class="btn-primary orange" id="exportBtn" style="margin-top:0;font-size:14px;padding:12px">📤 書き出す</button><button class="btn-primary gray" id="importTriggerBtn" style="margin-top:0;font-size:14px;padding:12px">📥 読み込む</button></div><input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)"></div></div>
   <button class="btn-primary green" id="shareBtn">📤 メール／共有で送る（録音も含む）</button>
   <button class="btn-primary gray" id="copyBtn" style="margin-top:10px">📋 テキストをコピー</button>
 </div>
@@ -151,7 +151,7 @@
     </div>
     <input type="file" id="detailAudioInput" accept="audio/*,.m4a,.mp3,.aac,.wav,audio/x-m4a,audio/mp4" style="display:none" onchange="onDetailAudioSelected(this)">
     <button class="btn-detail-save" id="detailSaveBtn">変更を保存</button>
-    <button class="btn-delete" id="detailDeleteBtn">🗑 この記録を削除</button>
+    <button class="btn-delete" id="detailDeleteBtn">🗑 こマを削除</button>
     <button class="btn-close" id="detailCloseBtn">閉じる</button>
   </div>
 </div>
@@ -168,7 +168,7 @@ function toLocalISO(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.
 function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 let toastTimer;
 function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2800);}
-function tapify(el,fn){if(!el)return;let moved=false;el.addEventListener('touchstart',()=>{moved=false;},{passive:true});el.addEventListener('touchmove',()=>{moved=true;},{passive:true});el.addEventListener('touchend',(e)=>{if(!moved){e.preventDefault();fn();}});el.addEventListener('click',fn);}
+function tapify(el,fn){if(!el)return;let moved=false;el.addEventListener('touchstart',()=>{moved=false;},{passive:true});el.addEventListener('touchmove',()=>{moved=true;},{passive:true});el.addEventListener('touchend',(e)=>{if(!moved){e.preventDefault();e.stopPropagation();fn();}});el.addEventListener('click',(e)=>{e.stopPropagation();fn();});}
 const MAX_MB=25;
 function readFileAsBase64(file){return new Promise((resolve,reject)=>{if(file.size>MAX_MB*1024*1024){reject(new Error('ファイルが'+MAX_MB+'MBを超えています'));return;}const r=new FileReader();r.onload=e=>resolve(e.target.result);r.onerror=reject;r.readAsDataURL(file);});}
 let recordAudioData=null;
@@ -204,7 +204,7 @@ function makeRecordHTML(rec){const d=new Date(rec.ts);const hasAudio=!!rec.audio
 function bindItems(container){container.querySelectorAll('.record-item').forEach(item=>{tapify(item,()=>openDetail(item.dataset.id));});}
 function renderRecentList(){const records=loadRecords().slice(0,5);const el=document.getElementById('recent-list');if(!records.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>';}else{el.innerHTML=records.map(makeRecordHTML).join('');bindItems(el);}}
 function renderFullList(){const records=loadRecords();const el=document.getElementById('full-list');document.getElementById('list-count').textContent=records.length+'件';if(!records.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>';}else{el.innerHTML=records.map(makeRecordHTML).join('');bindItems(el);}}
-function buildReportText(){const records=loadRecords();if(!records.length)return '記録がありません。';const now=new Date();let text='━━━━━━━━━━━━━━━━━━━━━━\n　騒音発生記録レポート\n━━━━━━━━━━━━━━━━━━━━━━\n';text+='作成日時：'+formatDatetime(now)+'\n記録件数：'+records.length+'件\n\n';records.forEach((rec,i)=>{text+='【'+(i+1)+'】'+formatDatetime(new Date(rec.ts))+(rec.manual?'（手動入力）':'')+'\n';if(rec.note)text+='　備考：'+rec.note+'\n';if(rec.audio)text+='　録音：'+rec.audio.name+'\n';text+='\n';});text+='━━━━━━━━━━━━━━━━━━━━━━\n※ このレポートは騒音記録アプリにより自動生成されました。';return text;}
+function buildReportText(){const records=loadRecords();if(!records.length)return '記録がありません。';const now=new Date();let text='━━━━━━━━━━━━━━━━━━━━━━\n　騒音発生記録レポート\n━━━━━━━━━━━━━━━━━━━━━━\n';text+='作成日時：'+formatDatetime(now)+'\n記録件数：'+records.length+'件\n\n';records.forEach((rec,i)=>{text+='【'+(i+1)+'】'+formatDatetime(new Date(rec.ts))+(rec.manual?'（手動入力）':'')+'\n';if(rec.note)text+='　備考：'+rec.note+'\n';if(rec.audio)text+='　録音：'+rec.audio.name+'\n';text+='\n';});text+='━━━━━━━━━━━━━━━━━━━━━━\n※ こマレポートは騒音記録アプリにより自動生成されました。';return text;}
 function renderReport(){const records=loadRecords();const now=new Date();const thisMonth=records.filter(r=>{const d=new Date(r.ts);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();});const weekAgo=new Date(now-7*24*60*60*1000);const thisWeek=records.filter(r=>new Date(r.ts)>=weekAgo);document.getElementById('stat-total').textContent=records.length;document.getElementById('stat-month').textContent=thisMonth.length;document.getElementById('stat-week').textContent=thisWeek.length;document.getElementById('report-preview').textContent=buildReportText();}
 async function base64ToFile(dataUrl,name){const res=await fetch(dataUrl);const blob=await res.blob();return new File([blob],name,{type:blob.type});}
 tapify(document.getElementById('shareBtn'),async()=>{const text=buildReportText();const subject='騒音発生記録レポート';const records=loadRecords();const audioFiles=[];for(const rec of records){if(rec.audio){try{audioFiles.push(await base64ToFile(rec.audio.dataUrl,rec.audio.name));}catch(e){}}}if(navigator.share){try{const sd={title:subject,text};if(audioFiles.length>0&&navigator.canShare&&navigator.canShare({files:audioFiles}))sd.files=audioFiles;await navigator.share(sd);showToast('✅ 共有しました');}catch(e){if(e.name!=='AbortError')window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);}}else{window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);}});
