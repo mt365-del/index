@@ -98,6 +98,7 @@
   <div class="report-card"><h3>🔄 PCとデータを同期</h3><div class="sync-box"><p>PCのブラウザでこのページを開き、「読み込む」でiPhoneの記録を取り込めます。録音ファイルも含まれます。</p><div class="sync-row"><button class="btn-primary orange" id="exportBtn" style="margin-top:0;font-size:14px;padding:12px">📤 書き出す</button><button class="btn-primary gray" id="importTriggerBtn" style="margin-top:0;font-size:14px;padding:12px">📥 読み込む</button></div><input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)"></div></div>
   <button class="btn-primary green" id="shareBtn">📤 メール／共有で送る（録音も含む）</button>
   <button class="btn-primary gray" id="copyBtn" style="margin-top:10px">📋 テキストをコピー</button>
+  <button class="btn-primary gray" id="csvBtn" style="margin-top:10px">📊 スプレッドシート用CSVを書き出す</button>
 </div>
 <div class="tab-bar">
   <button class="tab-btn active" id="tab-record"><span class="t-icon">🔴</span>記録</button>
@@ -151,12 +152,13 @@
     </div>
     <input type="file" id="detailAudioInput" accept="audio/*,.m4a,.mp3,.aac,.wav,audio/x-m4a,audio/mp4" style="display:none" onchange="onDetailAudioSelected(this)">
     <button class="btn-detail-save" id="detailSaveBtn">変更を保存</button>
-    <button class="btn-delete" id="detailDeleteBtn">🗑 この記録を削除</button>
+    <button class="btn-delete" id="detailDeleteBtn">この記録を削除</button>
     <button class="btn-close" id="detailCloseBtn">閉じる</button>
   </div>
 </div>
 <div class="toast" id="toast"></div>
 <script>
+// ─── ストレージ ───
 const STORAGE_KEY='soonRec_v1';
 function loadRecords(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}catch{return[];}}
 function saveRecords(r){localStorage.setItem(STORAGE_KEY,JSON.stringify(r));}
@@ -169,47 +171,310 @@ function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').repla
 let toastTimer;
 function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2800);}
 function tapify(el,fn){if(!el)return;let moved=false;el.addEventListener('touchstart',()=>{moved=false;},{passive:true});el.addEventListener('touchmove',()=>{moved=true;},{passive:true});el.addEventListener('touchend',(e)=>{if(!moved){e.preventDefault();e.stopPropagation();fn();}});el.addEventListener('click',(e)=>{e.stopPropagation();fn();});}
-const MAX_MB=25;
-function readFileAsBase64(file){return new Promise((resolve,reject)=>{if(file.size>MAX_MB*1024*1024){reject(new Error('ファイルが'+MAX_MB+'MBを超えています'));return;}const r=new FileReader();r.onload=e=>resolve(e.target.result);r.onerror=reject;r.readAsDataURL(file);});}
-let recordAudioData=null;
-function onRecordAudioSelected(input){const file=input.files[0];if(!file)return;showToast('⏳ 読み込み中…');readFileAsBase64(file).then(dataUrl=>{recordAudioData={name:file.name,dataUrl};document.getElementById('record-audio-name').textContent=file.name;document.getElementById('record-audio-player').src=dataUrl;document.getElementById('record-audio-preview').style.display='block';showToast('✅ 録音を添付しました');}).catch(e=>showToast('❌ '+e.message));input.value='';}
-tapify(document.getElementById('recordAudioRemoveBtn'),()=>{recordAudioData=null;document.getElementById('record-audio-preview').style.display='none';document.getElementById('record-audio-player').src='';showToast('🗑 録音を削除しました');});
-let detailAudioData=null;
-function showDetailAudio(audio){if(audio){document.getElementById('detail-audio-name').textContent=audio.name;document.getElementById('detail-audio-player').src=audio.dataUrl;document.getElementById('detail-no-audio').style.display='none';document.getElementById('detail-has-audio').style.display='block';}else{document.getElementById('detail-audio-player').src='';document.getElementById('detail-no-audio').style.display='block';document.getElementById('detail-has-audio').style.display='none';}}
-function onDetailAudioSelected(input){const file=input.files[0];if(!file)return;showToast('⏳ 読み込み中…');readFileAsBase64(file).then(dataUrl=>{detailAudioData={name:file.name,dataUrl};showDetailAudio(detailAudioData);showToast('✅ 録音を添付しました');}).catch(e=>showToast('❌ '+e.message));input.value='';}
-tapify(document.getElementById('detailAudioRemoveBtn'),()=>{detailAudioData='remove';showDetailAudio(null);showToast('🗑 録音を削除しました（保存で確定）');});
+
+// ─── IndexedDB（音声ファイル保存・容量制限なし） ───
+const MAX_MB=100;
+let _idb=null;
+function getIDB(){
+  if(_idb)return Promise.resolve(_idb);
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open('soonRecAudio',1);
+    req.onupgradeneeded=e=>e.target.result.createObjectStore('audio');
+    req.onsuccess=e=>{_idb=e.target.result;res(_idb);};
+    req.onerror=rej;
+  });
+}
+function idbPut(id,buf){return getIDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction('audio','readwrite');tx.objectStore('audio').put(buf,id);tx.oncomplete=()=>res();tx.onerror=rej;}));}
+function idbGet(id){return getIDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction('audio','readonly');const req=tx.objectStore('audio').get(id);req.onsuccess=e=>res(e.target.result);req.onerror=rej;}));}
+function idbDelete(id){return getIDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction('audio','readwrite');tx.objectStore('audio').delete(id);tx.oncomplete=()=>res();tx.onerror=rej;}));}
+
+// 旧データ（base64→IndexedDB）移行
+async function migrateAudio(){
+  const records=loadRecords();let changed=false;
+  for(const rec of records){
+    if(rec.audio&&rec.audio.dataUrl){
+      try{
+        const resp=await fetch(rec.audio.dataUrl);
+        const buf=await resp.arrayBuffer();
+        await idbPut(rec.id,buf);
+        rec.audio={name:rec.audio.name,type:rec.audio.type||'audio/mpeg'};
+        changed=true;
+      }catch(e){}
+    }
+  }
+  if(changed)saveRecords(records);
+}
+
+// ─── 音声添付（新規記録） ───
+let recordAudioData=null,recordAudioUrl=null;
+function onRecordAudioSelected(input){
+  const file=input.files[0];if(!file)return;
+  if(file.size>MAX_MB*1024*1024){showToast('❌ ファイルが'+MAX_MB+'MBを超えています');return;}
+  if(recordAudioUrl)URL.revokeObjectURL(recordAudioUrl);
+  recordAudioUrl=URL.createObjectURL(file);
+  recordAudioData={name:file.name,type:file.type||'audio/mpeg',file};
+  document.getElementById('record-audio-name').textContent=file.name;
+  document.getElementById('record-audio-player').src=recordAudioUrl;
+  document.getElementById('record-audio-preview').style.display='block';
+  showToast('✅ 録音を添付しました');
+  input.value='';
+}
+tapify(document.getElementById('recordAudioRemoveBtn'),()=>{
+  if(recordAudioUrl){URL.revokeObjectURL(recordAudioUrl);recordAudioUrl=null;}
+  recordAudioData=null;
+  document.getElementById('record-audio-preview').style.display='none';
+  document.getElementById('record-audio-player').src='';
+  showToast('録音を削除しました');
+});
+
+// ─── 音声添付（詳細編集） ───
+let detailAudioData=null,detailAudioUrl=null;
+function showDetailAudio(audio,src){
+  if(audio){
+    document.getElementById('detail-audio-name').textContent=audio.name;
+    document.getElementById('detail-audio-player').src=src||'';
+    document.getElementById('detail-no-audio').style.display='none';
+    document.getElementById('detail-has-audio').style.display='block';
+  }else{
+    document.getElementById('detail-audio-player').src='';
+    document.getElementById('detail-no-audio').style.display='block';
+    document.getElementById('detail-has-audio').style.display='none';
+  }
+}
+function onDetailAudioSelected(input){
+  const file=input.files[0];if(!file)return;
+  if(file.size>MAX_MB*1024*1024){showToast('❌ ファイルが'+MAX_MB+'MBを超えています');return;}
+  if(detailAudioUrl)URL.revokeObjectURL(detailAudioUrl);
+  detailAudioUrl=URL.createObjectURL(file);
+  detailAudioData={name:file.name,type:file.type||'audio/mpeg',file};
+  showDetailAudio({name:file.name},detailAudioUrl);
+  showToast('✅ 録音を添付しました');
+  input.value='';
+}
+tapify(document.getElementById('detailAudioRemoveBtn'),()=>{detailAudioData='remove';showDetailAudio(null);showToast('録音を削除しました（保存で確定）');});
+
+// ─── タブ切り替え ───
 function switchTab(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');document.getElementById('tab-'+name).classList.add('active');if(name==='list')renderFullList();if(name==='report')renderReport();if(name==='record')renderRecentList();}
 tapify(document.getElementById('tab-record'),()=>switchTab('record'));
 tapify(document.getElementById('tab-list'),()=>switchTab('list'));
 tapify(document.getElementById('tab-report'),()=>switchTab('report'));
+
+// ─── 記録モーダル ───
 let currentTimestamp=null,timeMode='auto';
 function setTimeMode(mode){timeMode=mode;document.getElementById('toggle-auto').classList.toggle('active',mode==='auto');document.getElementById('toggle-manual').classList.toggle('active',mode==='manual');document.getElementById('modal-timestamp').style.display=mode==='auto'?'block':'none';document.getElementById('manual-datetime-wrap').style.display=mode==='manual'?'block':'none';}
-function openRecordModal(manual){currentTimestamp=new Date();document.getElementById('modal-timestamp').textContent=formatDatetime(currentTimestamp);document.getElementById('manual-datetime').value=toLocalISO(currentTimestamp);document.getElementById('record-note').value='';recordAudioData=null;document.getElementById('record-audio-preview').style.display='none';document.getElementById('record-audio-player').src='';setTimeMode(manual?'manual':'auto');document.getElementById('record-modal').classList.add('open');}
+function openRecordModal(manual){
+  currentTimestamp=new Date();
+  document.getElementById('modal-timestamp').textContent=formatDatetime(currentTimestamp);
+  document.getElementById('manual-datetime').value=toLocalISO(currentTimestamp);
+  document.getElementById('record-note').value='';
+  if(recordAudioUrl){URL.revokeObjectURL(recordAudioUrl);recordAudioUrl=null;}
+  recordAudioData=null;
+  document.getElementById('record-audio-preview').style.display='none';
+  document.getElementById('record-audio-player').src='';
+  setTimeMode(manual?'manual':'auto');
+  document.getElementById('record-modal').classList.add('open');
+}
 tapify(document.getElementById('mainRecordBtn'),()=>openRecordModal(false));
 tapify(document.getElementById('manualAddBtn'),()=>openRecordModal(true));
 tapify(document.getElementById('toggle-auto'),()=>setTimeMode('auto'));
 tapify(document.getElementById('toggle-manual'),()=>setTimeMode('manual'));
 tapify(document.getElementById('recordCancelBtn'),()=>closeModal('record-modal'));
-tapify(document.getElementById('recordSaveBtn'),()=>{let ts;if(timeMode==='manual'){const val=document.getElementById('manual-datetime').value;if(!val){showToast('⚠️ 日時を入力してください');return;}ts=new Date(val).toISOString();}else{ts=currentTimestamp.toISOString();}const records=loadRecords();const note=document.getElementById('record-note').value.trim();const rec={id:genId(),ts,note,manual:timeMode==='manual'};if(recordAudioData)rec.audio=recordAudioData;records.push(rec);records.sort((a,b)=>new Date(b.ts)-new Date(a.ts));saveRecords(records);closeModal('record-modal');renderRecentList();showToast(recordAudioData?'✅ 記録しました（録音あり🎤）':'✅ 記録しました');});
-function openDetail(id){const rec=loadRecords().find(r=>r.id===id);if(!rec)return;detailAudioData=null;document.getElementById('detail-id').value=id;document.getElementById('detail-datetime').value=toLocalISO(new Date(rec.ts));document.getElementById('detail-note').value=rec.note||'';showDetailAudio(rec.audio||null);document.getElementById('detail-modal').classList.add('open');}
-tapify(document.getElementById('detailSaveBtn'),()=>{const id=document.getElementById('detail-id').value;const note=document.getElementById('detail-note').value.trim();const dtVal=document.getElementById('detail-datetime').value;const records=loadRecords();const idx=records.findIndex(r=>r.id===id);if(idx>=0){records[idx].note=note;if(dtVal)records[idx].ts=new Date(dtVal).toISOString();if(detailAudioData==='remove')delete records[idx].audio;else if(detailAudioData&&detailAudioData!=='remove')records[idx].audio=detailAudioData;records.sort((a,b)=>new Date(b.ts)-new Date(a.ts));saveRecords(records);renderRecentList();renderFullList();}closeModal('detail-modal');showToast('✅ 更新しました');});
-tapify(document.getElementById('detailDeleteBtn'),()=>{if(!confirm('この記録を削除しますか？'))return;const id=document.getElementById('detail-id').value;saveRecords(loadRecords().filter(r=>r.id!==id));closeModal('detail-modal');renderRecentList();renderFullList();showToast('🗑 削除しました');});
+tapify(document.getElementById('recordSaveBtn'),async()=>{
+  let ts;
+  if(timeMode==='manual'){
+    const val=document.getElementById('manual-datetime').value;
+    if(!val){showToast('⚠️ 日時を入力してください');return;}
+    ts=new Date(val).toISOString();
+  }else{ts=currentTimestamp.toISOString();}
+  const records=loadRecords();
+  const note=document.getElementById('record-note').value.trim();
+  const id=genId();
+  const rec={id,ts,note,manual:timeMode==='manual'};
+  if(recordAudioData){
+    rec.audio={name:recordAudioData.name,type:recordAudioData.type};
+    try{const buf=await recordAudioData.file.arrayBuffer();await idbPut(id,buf);}
+    catch(e){showToast('❌ 録音の保存に失敗しました');return;}
+  }
+  records.push(rec);records.sort((a,b)=>new Date(b.ts)-new Date(a.ts));saveRecords(records);
+  if(recordAudioUrl){URL.revokeObjectURL(recordAudioUrl);recordAudioUrl=null;}
+  recordAudioData=null;
+  closeModal('record-modal');renderRecentList();
+  showToast(rec.audio?'✅ 記録しました（録音あり）':'✅ 記録しました');
+});
+
+// ─── 詳細モーダル ───
+async function openDetail(id){
+  const rec=loadRecords().find(r=>r.id===id);if(!rec)return;
+  detailAudioData=null;
+  if(detailAudioUrl){URL.revokeObjectURL(detailAudioUrl);detailAudioUrl=null;}
+  document.getElementById('detail-id').value=id;
+  document.getElementById('detail-datetime').value=toLocalISO(new Date(rec.ts));
+  document.getElementById('detail-note').value=rec.note||'';
+  if(rec.audio){
+    showDetailAudio(rec.audio,'');
+    idbGet(id).then(buf=>{
+      if(buf){
+        const blob=new Blob([buf],{type:rec.audio.type||'audio/mpeg'});
+        detailAudioUrl=URL.createObjectURL(blob);
+        document.getElementById('detail-audio-player').src=detailAudioUrl;
+      }
+    }).catch(()=>{});
+  }else{showDetailAudio(null);}
+  document.getElementById('detail-modal').classList.add('open');
+}
+tapify(document.getElementById('detailSaveBtn'),async()=>{
+  const id=document.getElementById('detail-id').value;
+  const note=document.getElementById('detail-note').value.trim();
+  const dtVal=document.getElementById('detail-datetime').value;
+  const records=loadRecords();const idx=records.findIndex(r=>r.id===id);
+  if(idx>=0){
+    records[idx].note=note;
+    if(dtVal)records[idx].ts=new Date(dtVal).toISOString();
+    if(detailAudioData==='remove'){delete records[idx].audio;await idbDelete(id).catch(()=>{});}
+    else if(detailAudioData&&detailAudioData!=='remove'){
+      records[idx].audio={name:detailAudioData.name,type:detailAudioData.type};
+      try{const buf=await detailAudioData.file.arrayBuffer();await idbPut(id,buf);}
+      catch(e){showToast('❌ 録音の保存に失敗しました');return;}
+    }
+    records.sort((a,b)=>new Date(b.ts)-new Date(a.ts));saveRecords(records);
+    renderRecentList();renderFullList();
+  }
+  if(detailAudioUrl){URL.revokeObjectURL(detailAudioUrl);detailAudioUrl=null;}
+  closeModal('detail-modal');showToast('✅ 更新しました');
+});
+tapify(document.getElementById('detailDeleteBtn'),async()=>{
+  if(!confirm('この記録を削除しますか？'))return;
+  const id=document.getElementById('detail-id').value;
+  await idbDelete(id).catch(()=>{});
+  saveRecords(loadRecords().filter(r=>r.id!==id));
+  if(detailAudioUrl){URL.revokeObjectURL(detailAudioUrl);detailAudioUrl=null;}
+  closeModal('detail-modal');renderRecentList();renderFullList();showToast('削除しました');
+});
 tapify(document.getElementById('detailCloseBtn'),()=>closeModal('detail-modal'));
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeModal(id){
+  document.getElementById(id).classList.remove('open');
+  if(id==='record-modal'&&recordAudioUrl){URL.revokeObjectURL(recordAudioUrl);recordAudioUrl=null;recordAudioData=null;}
+  if(id==='detail-modal'&&detailAudioUrl){URL.revokeObjectURL(detailAudioUrl);detailAudioUrl=null;detailAudioData=null;}
+}
 document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('touchend',e=>{if(e.target===el)closeModal(el.id);});el.addEventListener('click',e=>{if(e.target===el)closeModal(el.id);});});
-function makeRecordHTML(rec){const d=new Date(rec.ts);const hasAudio=!!rec.audio;const badges=[rec.manual?'<span class="badge badge-manual">手動</span>':'',hasAudio?'<span class="badge badge-audio">🎤 録音あり</span>':''].filter(Boolean).join('');const noteHTML=rec.note?'<div class="record-note">'+escapeHtml(rec.note)+'</div>':'';return '<div class="record-item" data-id="'+rec.id+'"><div class="record-badge'+(hasAudio?' has-audio':'')+'">'+( hasAudio?'🎤':'🔊')+'</div><div class="record-info"><div class="record-datetime">'+escapeHtml(formatDatetime(d))+'</div><div class="record-meta">'+badges+noteHTML+'</div></div><div class="record-arrow">›</div></div>';}
+
+// ─── リスト描画 ───
+function makeRecordHTML(rec){const d=new Date(rec.ts);const hasAudio=!!rec.audio;const badges=[rec.manual?'<span class="badge badge-manual">手動</span>':'',hasAudio?'<span class="badge badge-audio">録音あり</span>':''].filter(Boolean).join('');const noteHTML=rec.note?'<div class="record-note">'+escapeHtml(rec.note)+'</div>':'';return '<div class="record-item" data-id="'+rec.id+'"><div class="record-badge'+(hasAudio?' has-audio':'')+'">'+( hasAudio?'🎤':'🔊')+'</div><div class="record-info"><div class="record-datetime">'+escapeHtml(formatDatetime(d))+'</div><div class="record-meta">'+badges+noteHTML+'</div></div><div class="record-arrow">›</div></div>';}
 function bindItems(container){container.querySelectorAll('.record-item').forEach(item=>{tapify(item,()=>openDetail(item.dataset.id));});}
 function renderRecentList(){const records=loadRecords().slice(0,5);const el=document.getElementById('recent-list');if(!records.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>';}else{el.innerHTML=records.map(makeRecordHTML).join('');bindItems(el);}}
 function renderFullList(){const records=loadRecords();const el=document.getElementById('full-list');document.getElementById('list-count').textContent=records.length+'件';if(!records.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>';}else{el.innerHTML=records.map(makeRecordHTML).join('');bindItems(el);}}
+
+// ─── レポート ───
 function buildReportText(){const records=loadRecords();if(!records.length)return '記録がありません。';const now=new Date();let text='━━━━━━━━━━━━━━━━━━━━━━\n　騒音発生記録レポート\n━━━━━━━━━━━━━━━━━━━━━━\n';text+='作成日時：'+formatDatetime(now)+'\n記録件数：'+records.length+'件\n\n';records.forEach((rec,i)=>{text+='【'+(i+1)+'】'+formatDatetime(new Date(rec.ts))+(rec.manual?'（手動入力）':'')+'\n';if(rec.note)text+='　備考：'+rec.note+'\n';if(rec.audio)text+='　録音：'+rec.audio.name+'\n';text+='\n';});text+='━━━━━━━━━━━━━━━━━━━━━━\n※ このレポートは騒音記録アプリにより自動生成されました。';return text;}
 function renderReport(){const records=loadRecords();const now=new Date();const thisMonth=records.filter(r=>{const d=new Date(r.ts);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();});const weekAgo=new Date(now-7*24*60*60*1000);const thisWeek=records.filter(r=>new Date(r.ts)>=weekAgo);document.getElementById('stat-total').textContent=records.length;document.getElementById('stat-month').textContent=thisMonth.length;document.getElementById('stat-week').textContent=thisWeek.length;document.getElementById('report-preview').textContent=buildReportText();}
-async function base64ToFile(dataUrl,name){const res=await fetch(dataUrl);const blob=await res.blob();return new File([blob],name,{type:blob.type});}
-tapify(document.getElementById('shareBtn'),async()=>{const text=buildReportText();const subject='騒音発生記録レポート';const records=loadRecords();const audioFiles=[];for(const rec of records){if(rec.audio){try{audioFiles.push(await base64ToFile(rec.audio.dataUrl,rec.audio.name));}catch(e){}}}if(navigator.share){try{const sd={title:subject,text};if(audioFiles.length>0&&navigator.canShare&&navigator.canShare({files:audioFiles}))sd.files=audioFiles;await navigator.share(sd);showToast('✅ 共有しました');}catch(e){if(e.name!=='AbortError')window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);}}else{window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);}});
+
+// ─── CSV書き出し ───
+function downloadCSV(){
+  const records=loadRecords();
+  if(!records.length){showToast('⚠️ 記録がありません');return;}
+  const header=['日付','時刻','曜日','メモ','手動入力','録音ファイル名'];
+  const rows=records.map(rec=>{
+    const d=new Date(rec.ts);
+    return [
+      d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate()),
+      pad(d.getHours())+':'+pad(d.getMinutes()),
+      DAYS[d.getDay()],
+      '"'+(rec.note||'').replace(/"/g,'""')+'"',
+      rec.manual?'はい':'いいえ',
+      '"'+(rec.audio?rec.audio.name:'')+'"'
+    ].join(',');
+  });
+  const csv='\uFEFF'+header.join(',')+'\n'+rows.join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');const now=new Date();
+  a.href=url;a.download='騒音記録_'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  showToast('📊 CSVを書き出しました');
+}
+tapify(document.getElementById('csvBtn'),()=>downloadCSV());
+
+// ─── 共有・コピー ───
+tapify(document.getElementById('shareBtn'),async()=>{
+  const text=buildReportText();const subject='騒音発生記録レポート';
+  const records=loadRecords();const audioFiles=[];
+  for(const rec of records){
+    if(rec.audio){
+      try{
+        const buf=await idbGet(rec.id);
+        if(buf){const blob=new Blob([buf],{type:rec.audio.type||'audio/mpeg'});audioFiles.push(new File([blob],rec.audio.name,{type:rec.audio.type||'audio/mpeg'}));}
+      }catch(e){}
+    }
+  }
+  if(navigator.share){
+    try{
+      const sd={title:subject,text};
+      if(audioFiles.length>0&&navigator.canShare&&navigator.canShare({files:audioFiles}))sd.files=audioFiles;
+      await navigator.share(sd);showToast('✅ 共有しました');
+    }catch(e){if(e.name!=='AbortError')window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);}
+  }else{window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);}
+});
 tapify(document.getElementById('copyBtn'),()=>{const text=buildReportText();if(navigator.clipboard){navigator.clipboard.writeText(text).then(()=>showToast('📋 コピーしました'));}else{const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('📋 コピーしました');}});
-tapify(document.getElementById('exportBtn'),()=>{const records=loadRecords();if(!records.length){showToast('⚠️ 記録がありません');return;}const json=JSON.stringify({version:2,exportedAt:new Date().toISOString(),records},null,2);const blob=new Blob([json],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');const now=new Date();a.href=url;a.download='騒音記録_'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showToast('📤 書き出しました');});
+
+// ─── エクスポート（音声はIndexedDBから取得しJSONに含める） ───
+tapify(document.getElementById('exportBtn'),async()=>{
+  const records=loadRecords();
+  if(!records.length){showToast('⚠️ 記録がありません');return;}
+  showToast('⏳ 書き出し準備中…');
+  const exportRecords=[];
+  for(const rec of records){
+    const exportRec={...rec};
+    if(rec.audio){
+      try{
+        const buf=await idbGet(rec.id);
+        if(buf){
+          const bytes=new Uint8Array(buf);let binary='';
+          bytes.forEach(b=>binary+=String.fromCharCode(b));
+          exportRec.audio={name:rec.audio.name,type:rec.audio.type,dataUrl:'data:'+rec.audio.type+';base64,'+btoa(binary)};
+        }
+      }catch(e){}
+    }
+    exportRecords.push(exportRec);
+  }
+  const json=JSON.stringify({version:2,exportedAt:new Date().toISOString(),records:exportRecords},null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');const now=new Date();
+  a.href=url;a.download='騒音記録_'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  showToast('📤 書き出しました');
+});
 tapify(document.getElementById('importTriggerBtn'),()=>document.getElementById('importFile').click());
-function importData(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const data=JSON.parse(e.target.result);const incoming=data.records||[];if(!incoming.length){showToast('⚠️ データが空です');return;}const existing=loadRecords();const existIds=new Set(existing.map(r=>r.id));const merged=[...existing,...incoming.filter(r=>!existIds.has(r.id))];merged.sort((a,b)=>new Date(b.ts)-new Date(a.ts));saveRecords(merged);renderRecentList();renderReport();showToast('✅ '+incoming.length+'件を読み込みました');}catch{showToast('❌ 読み込みに失敗しました');}};reader.readAsText(file);input.value='';}
-renderRecentList();
+async function importData(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      const incoming=data.records||[];
+      if(!incoming.length){showToast('⚠️ データが空です');return;}
+      for(const rec of incoming){
+        if(rec.audio&&rec.audio.dataUrl){
+          try{
+            const resp=await fetch(rec.audio.dataUrl);
+            const buf=await resp.arrayBuffer();
+            await idbPut(rec.id,buf);
+            rec.audio={name:rec.audio.name,type:rec.audio.type||'audio/mpeg'};
+          }catch(e){}
+        }
+      }
+      const existing=loadRecords();const existIds=new Set(existing.map(r=>r.id));
+      const merged=[...existing,...incoming.filter(r=>!existIds.has(r.id))];
+      merged.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+      saveRecords(merged);renderRecentList();renderReport();
+      showToast('✅ '+incoming.length+'件を読み込みました');
+    }catch{showToast('❌ 読み込みに失敗しました');}
+  };
+  reader.readAsText(file);input.value='';
+}
+
+// ─── 初期化（旧データ移行→描画） ───
+migrateAudio().then(()=>renderRecentList());
 </script>
 </body>
 </html>
