@@ -48,7 +48,7 @@
     .tab-btn .t-icon{font-size:22px;}.tab-btn.active{color:var(--red);}
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;align-items:flex-end;justify-content:center;}
     .modal-overlay.open{display:flex;}
-    .modal{background:var(--card);border-radius:20px 20px 0 0;padding:20px 20px calc(24px + var(--safe-bot));width:100%;max-width:520px;animation:slideUp .25s ease;max-height:92vh;overflow-y:auto;}
+    .modal{background:var(--card);border-radius:20px 20px 0 0;padding:20px 20px calc(24px + var(--safe-bot));width:100%;max-width:520px;animation:slideUp .25s ease;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
     @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
     .modal-handle{width:36px;height:4px;background:var(--sep);border-radius:2px;margin:0 auto 16px;}
     .modal h2{font-size:17px;font-weight:700;margin-bottom:12px;}
@@ -67,7 +67,7 @@
     .time-toggle button{flex:1;border:none;padding:9px 4px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;background:none;color:var(--text2);touch-action:manipulation;font-family:inherit;-webkit-tap-highlight-color:transparent;}
     .time-toggle button.active{background:var(--card);color:var(--text);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.12);}
     .timestamp-display{font-size:20px;font-weight:700;color:var(--red);margin-bottom:14px;letter-spacing:-.3px;}
-    .modal-btns{display:flex;gap:10px;margin-top:18px;}
+    .modal-btns{display:flex;gap:10px;margin-top:18px;position:sticky;bottom:0;background:var(--card);padding-bottom:4px;}
     .modal-btns button{flex:1;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
     .btn-cancel{background:var(--bg);color:var(--text);}.btn-save{background:var(--red);color:#fff;}
     .btn-detail-save{background:var(--blue);color:#fff;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;margin-top:16px;display:block;}
@@ -89,13 +89,13 @@
   <div class="card" id="recent-list"><div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div></div>
 </div>
 <div class="page" id="page-list">
-  <div class="list-header-row"><div class="section-title" style="margin-bottom:0">すべでの記録</div><span class="count-badge" id="list-count">0件</span></div>
+  <div class="list-header-row"><div class="section-title" style="margin-bottom:0">すべての記録</div><span class="count-badge" id="list-count">0件</span></div>
   <div style="margin-top:8px"><div class="card" id="full-list"><div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div></div></div>
 </div>
 <div class="page" id="page-report">
   <div class="report-card"><h3>📊 集計</h3><div class="stat-row"><div class="stat-box"><div class="stat-num" id="stat-total">0</div><div class="stat-label">総件数</div></div><div class="stat-box"><div class="stat-num" id="stat-month">0</div><div class="stat-label">今月</div></div><div class="stat-box"><div class="stat-num" id="stat-week">0</div><div class="stat-label">今週</div></div></div></div>
   <div class="report-card"><h3>📄 報告テキスト（プレビュー）</h3><div class="preview-box" id="report-preview">記録がまだありません。</div></div>
-  <div class="report-card"><h3>🔄 PCとデータを同期</h3><div class="sync-box"><p>PCのブラウスでこのページを開き、「読み込む」でiPhoneの記録を取り込めみ���。録音ファイルも含まれみ���。</p><div class="sync-row"><button class="btn-primary orange" id="exportBtn" style="margin-top:0;font-size:14px;padding:12px">📤 書き出す</button><button class="btn-primary gray" id="importTriggerBtn" style="margin-top:0;font-size:14px;padding:12px">📥 読み込む</button></div><input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)"></div></div>
+  <div class="report-card"><h3>🔄 PCとデータを同期</h3><div class="sync-box"><p>PCのブラウザでこのページを開き、「読み込む」でiPhoneの記録を取り込めます。録音ファイルも含まれます。</p><div class="sync-row"><button class="btn-primary orange" id="exportBtn" style="margin-top:0;font-size:14px;padding:12px">📤 書き出す</button><button class="btn-primary gray" id="importTriggerBtn" style="margin-top:0;font-size:14px;padding:12px">📥 読み込む</button></div><input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)"></div></div>
   <button class="btn-primary green" id="shareBtn">📤 メール／共有で送る（録音も含む）</button>
   <button class="btn-primary gray" id="copyBtn" style="margin-top:10px">📋 テキストをコピー</button>
 </div>
@@ -113,11 +113,11 @@
     <label>メモ（任意）</label>
     <textarea id="record-note" rows="3" placeholder="例：上の階からドン、廊下で怒鳴り声、深夜0時以降…"></textarea>
     <label>録音ファイルを添付（任意）</label>
-    <div class="audio-attach-row" id="recordAudioAttachBtn">
+    <label class="audio-attach-row" id="recordAudioAttachBtn" for="recordAudioInput">
       <span class="aa-icon">🎤</span>
       <div class="aa-text"><div class="aa-title">録音ファイルを選択</div><div class="aa-sub">ボイスメモ・m4a・mp3 など対応</div></div>
       <span style="color:var(--text2)">›</span>
-    </div>
+    </label>
     <input type="file" id="recordAudioInput" accept="audio/*,.m4a,.mp3,.aac,.wav,audio/x-m4a,audio/mp4" style="display:none" onchange="onRecordAudioSelected(this)">
     <div id="record-audio-preview" style="display:none" class="attached-audio">
       <div class="attached-audio-name">🎤 <span id="record-audio-name"></span></div>
@@ -135,23 +135,23 @@
     <label>メモ</label><textarea id="detail-note" rows="3" placeholder="メモを入力…"></textarea>
     <label>録音ファイル</label>
     <div id="detail-no-audio">
-      <div class="audio-attach-row" id="detailAudioAttachBtn">
+      <label class="audio-attach-row" id="detailAudioAttachBtn" for="detailAudioInput">
         <span class="aa-icon">🎤</span>
         <div class="aa-text"><div class="aa-title">録音ファイルを添付</div><div class="aa-sub">ボイスメモ・m4a・mp3 など対応</div></div>
         <span style="color:var(--text2)">›</span>
-      </div>
+      </label>
     </div>
     <div id="detail-has-audio" style="display:none" class="attached-audio">
       <div class="attached-audio-name">🎤 <span id="detail-audio-name"></span></div>
       <audio id="detail-audio-player" controls></audio>
       <button class="attached-audio-remove" id="detailAudioRemoveBtn">✕ 録音を削除</button>
-      <div class="audio-attach-row" id="detailAudioReplaceBtn" style="margin-top:8px">
+      <label class="audio-attach-row" id="detailAudioReplaceBtn" for="detailAudioInput" style="margin-top:8px">
         <span class="aa-icon">🔄</span><div class="aa-text"><div class="aa-title">別のファイルに差し替え</div></div><span style="color:var(--text2)">›</span>
-      </div>
+      </label>
     </div>
     <input type="file" id="detailAudioInput" accept="audio/*,.m4a,.mp3,.aac,.wav,audio/x-m4a,audio/mp4" style="display:none" onchange="onDetailAudioSelected(this)">
     <button class="btn-detail-save" id="detailSaveBtn">変更を保存</button>
-    <button class="btn-delete" id="detailDeleteBtn">🗑 こマを削除</button>
+    <button class="btn-delete" id="detailDeleteBtn">🗑 この記録を削除</button>
     <button class="btn-close" id="detailCloseBtn">閉じる</button>
   </div>
 </div>
@@ -173,13 +173,10 @@ const MAX_MB=25;
 function readFileAsBase64(file){return new Promise((resolve,reject)=>{if(file.size>MAX_MB*1024*1024){reject(new Error('ファイルが'+MAX_MB+'MBを超えています'));return;}const r=new FileReader();r.onload=e=>resolve(e.target.result);r.onerror=reject;r.readAsDataURL(file);});}
 let recordAudioData=null;
 function onRecordAudioSelected(input){const file=input.files[0];if(!file)return;showToast('⏳ 読み込み中…');readFileAsBase64(file).then(dataUrl=>{recordAudioData={name:file.name,dataUrl};document.getElementById('record-audio-name').textContent=file.name;document.getElementById('record-audio-player').src=dataUrl;document.getElementById('record-audio-preview').style.display='block';showToast('✅ 録音を添付しました');}).catch(e=>showToast('❌ '+e.message));input.value='';}
-tapify(document.getElementById('recordAudioAttachBtn'),()=>document.getElementById('recordAudioInput').click());
 tapify(document.getElementById('recordAudioRemoveBtn'),()=>{recordAudioData=null;document.getElementById('record-audio-preview').style.display='none';document.getElementById('record-audio-player').src='';showToast('🗑 録音を削除しました');});
 let detailAudioData=null;
 function showDetailAudio(audio){if(audio){document.getElementById('detail-audio-name').textContent=audio.name;document.getElementById('detail-audio-player').src=audio.dataUrl;document.getElementById('detail-no-audio').style.display='none';document.getElementById('detail-has-audio').style.display='block';}else{document.getElementById('detail-audio-player').src='';document.getElementById('detail-no-audio').style.display='block';document.getElementById('detail-has-audio').style.display='none';}}
 function onDetailAudioSelected(input){const file=input.files[0];if(!file)return;showToast('⏳ 読み込み中…');readFileAsBase64(file).then(dataUrl=>{detailAudioData={name:file.name,dataUrl};showDetailAudio(detailAudioData);showToast('✅ 録音を添付しました');}).catch(e=>showToast('❌ '+e.message));input.value='';}
-tapify(document.getElementById('detailAudioAttachBtn'),()=>document.getElementById('detailAudioInput').click());
-tapify(document.getElementById('detailAudioReplaceBtn'),()=>document.getElementById('detailAudioInput').click());
 tapify(document.getElementById('detailAudioRemoveBtn'),()=>{detailAudioData='remove';showDetailAudio(null);showToast('🗑 録音を削除しました（保存で確定）');});
 function switchTab(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');document.getElementById('tab-'+name).classList.add('active');if(name==='list')renderFullList();if(name==='report')renderReport();if(name==='record')renderRecentList();}
 tapify(document.getElementById('tab-record'),()=>switchTab('record'));
@@ -204,7 +201,7 @@ function makeRecordHTML(rec){const d=new Date(rec.ts);const hasAudio=!!rec.audio
 function bindItems(container){container.querySelectorAll('.record-item').forEach(item=>{tapify(item,()=>openDetail(item.dataset.id));});}
 function renderRecentList(){const records=loadRecords().slice(0,5);const el=document.getElementById('recent-list');if(!records.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>';}else{el.innerHTML=records.map(makeRecordHTML).join('');bindItems(el);}}
 function renderFullList(){const records=loadRecords();const el=document.getElementById('full-list');document.getElementById('list-count').textContent=records.length+'件';if(!records.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><p>まだ記録がありません</p></div>';}else{el.innerHTML=records.map(makeRecordHTML).join('');bindItems(el);}}
-function buildReportText(){const records=loadRecords();if(!records.length)return '記録がありません。';const now=new Date();let text='━━━━━━━━━━━━━━━━━━━━━━\n　騒音発生記録レポート\n━━━━━━━━━━━━━━━━━━━━━━\n';text+='作成日時：'+formatDatetime(now)+'\n記録件数：'+records.length+'件\n\n';records.forEach((rec,i)=>{text+='【'+(i+1)+'】'+formatDatetime(new Date(rec.ts))+(rec.manual?'（手動入力）':'')+'\n';if(rec.note)text+='　備考：'+rec.note+'\n';if(rec.audio)text+='　録音：'+rec.audio.name+'\n';text+='\n';});text+='━━━━━━━━━━━━━━━━━━━━━━\n※ こマレポートは騒音記録アプリにより自動生成されました。';return text;}
+function buildReportText(){const records=loadRecords();if(!records.length)return '記録がありません。';const now=new Date();let text='━━━━━━━━━━━━━━━━━━━━━━\n　騒音発生記録レポート\n━━━━━━━━━━━━━━━━━━━━━━\n';text+='作成日時：'+formatDatetime(now)+'\n記録件数：'+records.length+'件\n\n';records.forEach((rec,i)=>{text+='【'+(i+1)+'】'+formatDatetime(new Date(rec.ts))+(rec.manual?'（手動入力）':'')+'\n';if(rec.note)text+='　備考：'+rec.note+'\n';if(rec.audio)text+='　録音：'+rec.audio.name+'\n';text+='\n';});text+='━━━━━━━━━━━━━━━━━━━━━━\n※ このレポートは騒音記録アプリにより自動生成されました。';return text;}
 function renderReport(){const records=loadRecords();const now=new Date();const thisMonth=records.filter(r=>{const d=new Date(r.ts);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();});const weekAgo=new Date(now-7*24*60*60*1000);const thisWeek=records.filter(r=>new Date(r.ts)>=weekAgo);document.getElementById('stat-total').textContent=records.length;document.getElementById('stat-month').textContent=thisMonth.length;document.getElementById('stat-week').textContent=thisWeek.length;document.getElementById('report-preview').textContent=buildReportText();}
 async function base64ToFile(dataUrl,name){const res=await fetch(dataUrl);const blob=await res.blob();return new File([blob],name,{type:blob.type});}
 tapify(document.getElementById('shareBtn'),async()=>{const text=buildReportText();const subject='騒音発生記録レポート';const records=loadRecords();const audioFiles=[];for(const rec of records){if(rec.audio){try{audioFiles.push(await base64ToFile(rec.audio.dataUrl,rec.audio.name));}catch(e){}}}if(navigator.share){try{const sd={title:subject,text};if(audioFiles.length>0&&navigator.canShare&&navigator.canShare({files:audioFiles}))sd.files=audioFiles;await navigator.share(sd);showToast('✅ 共有しました');}catch(e){if(e.name!=='AbortError')window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);}}else{window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);}});
