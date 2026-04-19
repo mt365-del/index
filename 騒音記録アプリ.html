@@ -166,6 +166,8 @@ function genId(){return Date.now().toString(36)+Math.random().toString(36).slice
 const DAYS=['日','月','火','水','木','金','土'];
 function pad(n){return String(n).padStart(2,'0');}
 function formatDatetime(d){return d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate())+'（'+DAYS[d.getDay()]+'） '+pad(d.getHours())+':'+pad(d.getMinutes());}
+function mimeToExt(type){const m={'audio/mpeg':'mp3','audio/mp3':'mp3','audio/mp4':'m4a','audio/x-m4a':'m4a','audio/aac':'aac','audio/wav':'wav','audio/ogg':'ogg'};return m[type]||'m4a';}
+function makeAudioName(ts,note,type){const d=new Date(ts);const date=d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());const time=pad(d.getHours())+pad(d.getMinutes());const n=note?'_'+note.slice(0,30).replace(/[\\/:*?"<>|\n\r]/g,''):'';return date+'_'+time+n+'.'+mimeToExt(type);}
 function toLocalISO(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());}
 function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 let toastTimer;
@@ -291,7 +293,8 @@ tapify(document.getElementById('recordSaveBtn'),async()=>{
   const id=genId();
   const rec={id,ts,note,manual:timeMode==='manual'};
   if(recordAudioData){
-    rec.audio={name:recordAudioData.name,type:recordAudioData.type};
+    const audioName=makeAudioName(ts,note,recordAudioData.type);
+    rec.audio={name:audioName,type:recordAudioData.type};
     try{const buf=await recordAudioData.file.arrayBuffer();await idbPut(id,buf);}
     catch(e){showToast('❌ 録音の保存に失敗しました');return;}
   }
@@ -332,7 +335,8 @@ tapify(document.getElementById('detailSaveBtn'),async()=>{
     if(dtVal)records[idx].ts=new Date(dtVal).toISOString();
     if(detailAudioData==='remove'){delete records[idx].audio;await idbDelete(id).catch(()=>{});}
     else if(detailAudioData&&detailAudioData!=='remove'){
-      records[idx].audio={name:detailAudioData.name,type:detailAudioData.type};
+      const audioName=makeAudioName(records[idx].ts,records[idx].note,detailAudioData.type);
+      records[idx].audio={name:audioName,type:detailAudioData.type};
       try{const buf=await detailAudioData.file.arrayBuffer();await idbPut(id,buf);}
       catch(e){showToast('❌ 録音の保存に失敗しました');return;}
     }
